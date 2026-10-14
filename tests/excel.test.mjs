@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+globalThis.window = {};
+const L = await import('../js/live/engine.js');
+const {sheetsJogoAoVivo} = await import('../js/live/excel.js');
+const plantel = [['a','1','GR','Tiago Melo'],['b','3','Fixo','Diogo Ávila'],['c','5','Ala','Marco Leal'],['d','7','Ala','Bruno Sá'],['e','8','Pivô','Hugo Pires'],['f','9','Ala','Luís Borges']].map(([id,num,pos,nome])=>({id,num,pos,nome}));
+let live = L.newLive({plantel}); const T = s => 1e6 + s*1000;
+live = L.push(live,{type:'kickoff'},T(0)); live = L.push(live,{type:'sub',off:'c',on:'f'},T(100));
+live = L.push(live,{type:'goal',team:'adv'},T(200)); live = L.push(live,{type:'break'},T(1300));
+const sh = sheetsJogoAoVivo({adversario:'Angrense', data:'2026-10-18', casa:true}, live, {clube:'ADRC'});
+assert.deepEqual(Object.keys(sh), ['Match Info','Team Info','Match Events','Playing Stats']);
+const ev = sh['Match Events']; const H = ev[0];
+const sub = ev.find(r => r[6]==='substitution'); assert.equal(sub[7],'5'); assert.equal(sub[10],'Borges');
+const g = ev.find(r => r[6]==='golo sofrido'); assert.equal(g[H.indexOf('on_ala1')],'9 Borges'); assert.equal(g[H.indexOf('min_eff')],'03');
+const ps = sh['Playing Stats']; const leal = ps.find(r => r[0]==='5');
+assert.equal(leal[ps[0].indexOf('1H_Play Time')], 100); assert.equal(leal[ps[0].indexOf('1H_Rest Time')], 1200);
+assert.equal(sh['Match Info'][1][11], 1);
+console.log('excel ok'); console.log(ev.slice(0,4).map(r=>r.join(' | ')).join('\n'));

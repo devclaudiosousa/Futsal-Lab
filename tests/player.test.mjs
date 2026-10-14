@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {parseYouTube} from '../js/marcador/player.js';
+const id = '_ooPEbvCQ0s';
+assert.deepEqual(parseYouTube('https://www.youtube.com/watch?v=_ooPEbvCQ0s&t=778s'), {id, t: 778});
+assert.deepEqual(parseYouTube('https://youtu.be/_ooPEbvCQ0s?t=1h2m3s'), {id, t: 3723});
+assert.deepEqual(parseYouTube('youtube.com/live/_ooPEbvCQ0s?si=x'), {id, t: 0});
+assert.deepEqual(parseYouTube('https://m.youtube.com/shorts/_ooPEbvCQ0s'), {id, t: 0});
+assert.deepEqual(parseYouTube(id), {id, t: 0});
+assert.equal(parseYouTube('https://vimeo.com/123'), null);
+assert.equal(parseYouTube('olá'), null);
+console.log('youtube ok');

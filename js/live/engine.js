@@ -16,7 +16,7 @@ export const DEFAULT_PERIODS = [{lbl: '1H', min: 20}, {lbl: '2H', min: 20}, {lbl
 
 // type "event" = pontual; "state" = dura até ser desligado (exclusivo dentro do grupo)
 export const SITUACOES = [
-  {id: '5-inicial', label: '5 Inicial', group: 'ini', type: 'event', gr: true},
+  {id: '5-inicial', label: '5 Inicial', group: 'ini', type: 'event'},
   {id: '3-1', label: '3-1', group: 'sis', type: 'state'},
   {id: '4-0', label: '4-0', group: 'sis', type: 'state'},
   {id: 'bola-saida', label: 'Bola Saída', group: 'bola', type: 'event'},

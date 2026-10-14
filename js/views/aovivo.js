@@ -28,7 +28,7 @@ export async function render(main, [id], ctx) {
       <div class="row"><a class="btn primary" href="#/plantel">Ir ao plantel</a><a class="btn" href="#/jogo/${j.id}">Convocatória do jogo</a></div></div>`;
     return;
   }
-  let sel = null, modal = null, showTab = false, showReg = false, wake = null;
+  let sel = null, modal = null, showTab = false, showReg = false, editPresets = false, wake = null;
   document.body.classList.add('live-on');
 
   const save = async () => {
@@ -50,8 +50,9 @@ export async function render(main, [id], ctx) {
     const per = live.periods[Math.max(0, d.per)];
     const running = d.phase === 'live';
     main.innerHTML = `<div class="live">
-      <div class="sitbar" role="toolbar" aria-label="Situações">${L.SITUACOES.map(s => `<button class="sit${s.type === 'state' && d.states[s.group] === s.id ? ' on' : ''}${live.presets?.[s.id] ? ' preset' : ''}" data-sit="${s.id}" ${running ? '' : 'disabled'}>${esc(s.label)}</button>`).join('')}
+      <div class="sitbar" role="toolbar" aria-label="Situações"><button class="sit edit${editPresets ? ' on' : ''}" data-act="presets" aria-pressed="${editPresets}">${editPresets ? '✓ Presets' : '✎ Presets'}</button>${L.SITUACOES.map(s => `<button class="sit${s.type === 'state' && d.states[s.group] === s.id ? ' on' : ''}${live.presets?.[s.id] ? ' preset' : ''}${editPresets ? ' editing' : ''}" data-sit="${s.id}">${esc(s.label)}</button>`).join('')}
         <button class="sit" data-act="repor" ${d.snapshot && running ? '' : 'disabled'}>Repor</button></div>
+      ${editPresets ? '<p class="small hint-edit">Toca numa situação para definir os jogadores do preset. Carrega em ✓ Presets para voltar a marcar.</p>' : ''}
 
       <div class="clocks">
         <div class="cl"><span>Parte</span><b id="lvPer">${d.per < 0 ? '–' : esc(per.lbl)}</b></div>
@@ -72,7 +73,7 @@ export async function render(main, [id], ctx) {
         <button class="sh" data-shot="${teamA}"><b>${d.shots[teamA]}</b><small>remates</small></button>
         <button class="sc" data-goal="${teamA}">${esc(short(labA))}<b>${d.score[teamA]}</b><small>golo</small></button>
       </div>
-      <button class="foul${d.foulsNow >= 5 ? ' warn' : ''}" data-foul ${running ? '' : 'disabled'}>Falta<b>${d.foulsNow}</b><small>${d.foulsNow >= 5 ? 'a próxima dá livre de 10 m' : 'nesta parte'}</small></button>
+      <button class="foul${d.foulsNow >= 5 ? ' warn' : ''}" data-foul>Falta<b>${d.foulsNow}</b><small>${d.foulsNow >= 5 ? 'a próxima dá livre de 10 m' : 'nesta parte'}</small></button>
       <p class="small muted hint">${hint(d)}</p>
 
       <div class="squad">${['Em campo', 'Banco'].map((h, k) => `<div class="grp"><h2>${h}</h2><div class="cards">${
@@ -150,7 +151,7 @@ export async function render(main, [id], ctx) {
       if (team === 'nos') askAuthor(live.events.at(-1).id, 'shot');
     }, () => set(L.undoShot(live, b.dataset.shot))));
     const fb = main.querySelector('[data-foul]');
-    if (fb) press(fb, () => askFoul(), () => { if (d.fouls.length && confirm('Anular a última falta?')) set(L.undoFoul(live)); });
+    if (fb) press(fb, () => (d.phase === 'live' ? askFoul() : toast('As faltas contam durante a parte: carrega primeiro em Início.')), () => { if (d.fouls.length && confirm('Anular a última falta?')) set(L.undoFoul(live)); });
     main.querySelectorAll('[data-sit]').forEach(b => press(b, () => runSit(b.dataset.sit), () => openPreset(b.dataset.sit, d)));
     main.querySelector('#tabDet').ontoggle = e => { showTab = e.target.open; };
     main.querySelector('#regDet').ontoggle = e => { showReg = e.target.open; };
@@ -180,6 +181,7 @@ export async function render(main, [id], ctx) {
     else if (a === 'break') { if (confirm(`Terminar a ${live.periods[d.per].lbl}?`)) add({type: 'break'}); }
     else if (a === 'undo') { const n = L.undoLineupChange(live); if (n === live) toast('Nada para desfazer'); else set(n); }
     else if (a === 'repor') set(L.repor(live));
+    else if (a === 'presets') { editPresets = !editPresets; draw(); }
   }
   function tapPlayer(pid, d) {
     if (!sel) { sel = pid; draw(); return; }
@@ -190,6 +192,8 @@ export async function render(main, [id], ctx) {
     add(ev);
   }
   function runSit(sid) {
+    if (editPresets) { openPreset(sid); return; }
+    if (L.derive(live, Date.now()).phase !== 'live') { toast('Começa a parte primeiro (Início). Para definir os jogadores, usa ✎ Presets.'); return; }
     const r = L.runSituation(live, L.sitById(sid));
     if (r.error) { alert(r.error); return; }
     set(r.live);
@@ -258,20 +262,19 @@ export async function render(main, [id], ctx) {
 
   // Toque vs pressão longa (como no Control-Stats)
   function press(el, onTap, onHold) {
-    let tm = null;
+    // toque = evento click (fiável em Android/iOS, também dentro de barras com scroll);
+    // pressão longa = temporizador nos pointer events, ou o contextmenu do próprio sistema
+    let tm = null, held = 0;
     const cancel = () => { clearTimeout(tm); tm = null; el.classList.remove('pressing'); };
-    el.addEventListener('pointerdown', e => {
-      if (el.disabled || e.button > 0) return;
-      el.classList.add('pressing');
-      tm = setTimeout(() => { cancel(); try { navigator.vibrate?.(30); } catch (x) {} onHold(); }, LONG);
-    });
-    el.addEventListener('pointerup', () => { if (tm) { cancel(); onTap(); } });
+    const hold = () => { cancel(); held = Date.now(); try { navigator.vibrate?.(30); } catch (x) {} onHold(); };
+    el.addEventListener('pointerdown', e => { if (el.disabled || e.button > 0) return; cancel(); el.classList.add('pressing'); tm = setTimeout(hold, LONG); });
+    el.addEventListener('pointerup', cancel);
     el.addEventListener('pointerleave', cancel);
     el.addEventListener('pointercancel', cancel);
-    el.addEventListener('contextmenu', e => e.preventDefault());
+    el.addEventListener('contextmenu', e => { e.preventDefault(); if (Date.now() - held > 1000) hold(); });
+    el.addEventListener('click', e => { if (Date.now() - held < 800) { e.preventDefault(); return; } onTap(); });
   }
 
-  // Relógios e tempos dos cartões atualizam sem redesenhar a página
   // Relógios, tempos dos cartões e tabela atualizam sem redesenhar a página (também com um popup aberto)
   const tick = () => {
     const d = L.derive(live, Date.now());

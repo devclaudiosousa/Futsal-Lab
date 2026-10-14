@@ -33,7 +33,10 @@ export function marcadorSet(j, pref) {
 export function resultado(j) {
   if (j.golosNos != null && j.golosNos !== '' && j.golosEles != null && j.golosEles !== '') return {a: +j.golosNos, b: +j.golosEles, manual: true};
   const {events} = marcadorSet(j);
-  if (!events.length) return null;
+  if (!events.length) {
+    const g = j.manual?.golos || [];
+    return g.length ? {a: g.filter(x => x.nos).length, b: g.filter(x => !x.nos).length, manual: true} : null;
+  }
   return {...score(events), manual: false};
 }
 export function jogoTitulo(j, clube = 'Nós') {

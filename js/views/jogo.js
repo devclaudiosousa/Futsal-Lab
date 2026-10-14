@@ -4,6 +4,8 @@ import {atletas, marcadorSet, resultado, placar, desfecho, jogoTitulo, config, F
 import {playerStats, quartets, goalsAgainst, mmss, minLabel} from '../stats.js';
 import {field} from './common.js';
 import {lerTempo} from '../importar-tempos.js';
+import {manualHtml, manualWire, fecharManual, ajustesHtml, ajustesWire} from './jogo-manual.js';
+import {analisarJogo, CATEGORIAS, categorias, categoriasAuto} from '../epoca-excel.js';
 
 let srcPref = null;
 
@@ -16,7 +18,13 @@ export async function render(main, [id], ctx) {
   let confirmDel = false;
   let pend = null;
   // As marcações são do marcador: guarda sempre as que estão na base de dados, não a cópia desta página
-  const save = async () => { clearTimeout(pend); pend = null; const cur = await db.get('jogos', j.id); j = await db.put('jogos', {...j, marcador: cur ? cur.marcador : j.marcador, aovivo: cur ? cur.aovivo : j.aovivo}); };
+  // gravações em fila: duas alterações seguidas (ex.: um cartão e logo um ajuste) não se atropelam
+  let fila = Promise.resolve();
+  const save = () => { clearTimeout(pend); pend = null; return fila = fila.then(async () => {
+    const cur = await db.get('jogos', j.id);
+    const r = await db.put('jogos', {...j, marcador: cur ? cur.marcador : j.marcador, aovivo: cur ? cur.aovivo : j.aovivo});
+    Object.assign(j, {updatedAt: r.updatedAt, marcador: r.marcador, aovivo: r.aovivo});
+  }).catch(e => toast('Não deu para gravar: ' + e.message)); };
   const saveLater = () => { clearTimeout(pend); pend = setTimeout(save, 400); };
 
   const convText = () => {
@@ -42,6 +50,12 @@ export async function render(main, [id], ctx) {
     // sem Ao vivo nem substituições no vídeo, os tempos podem ser escritos à mão
     const manual = !j.aovivo?.events?.some(e => e.type === 'kickoff') && !temLinhas;
     const manList = manual ? ats.filter(a => conv.has(a.id) || j.minutos?.[a.id]) : [];
+    // +/− do jogo por atleta (golo ou assistência +1, golo sofrido em campo −1), da mesma conta do Excel da época
+    const atByNum = {}; for (const a of ats) if (a.num) atByNum[String(a.num)] = a;
+    const an = analisarJogo(j, {atById: byId, atByNum});
+    const pmOf = id => { const x = an.P[id]; return x ? x.mais - x.menos : 0; };
+    const temPM = Object.values(an.P).some(x => x.mais || x.menos);
+    const mstList = manual ? ats.filter(a => conv.has(a.id) || j.minutos?.[a.id] || j.manual?.atletas?.[a.id]) : convList;
     const bestQ = qs.filter(q => q.seg >= 120).reduce((b, q) => !b || (q.gm - q.gs) > (b.gm - b.gs) || ((q.gm - q.gs) === (b.gm - b.gs) && q.rm - q.rs > b.rm - b.rs) ? q : b, null);
 
     main.innerHTML = `
@@ -73,8 +87,8 @@ export async function render(main, [id], ctx) {
       </section>
 
       ${convList.length ? `<section class="panel"><h2>Notas do jogo (1–10)</h2>
-        <div class="tw"><table><thead><tr><th>Atleta</th><th>Tempo</th><th>Golos</th><th>Nota</th></tr></thead><tbody>
-        ${convList.map(a => { const p = psByNum[a.num], seg = p?.seg || (manual ? j.minutos?.[a.id] : 0); return `<tr><td><b>${esc(a.num)}</b> ${esc(a.nome || '')}</td><td>${seg ? minLabel(seg) : '–'}</td><td>${p?.gol || 0}</td>
+        <div class="tw"><table><thead><tr><th>Atleta</th><th>Tempo</th><th>Golos</th>${temPM ? '<th>+/−</th>' : ''}<th>Nota</th></tr></thead><tbody>
+        ${convList.map(a => { const p = psByNum[a.num], seg = p?.seg || (manual ? j.minutos?.[a.id] : 0); return `<tr><td><b>${esc(a.num)}</b> ${esc(a.nome || '')}</td><td>${seg ? minLabel(seg) : '–'}</td><td>${p?.gol || an.P[a.id]?.gol || 0}</td>${temPM ? (v => `<td class="${v > 0 ? 'pos' : v < 0 ? 'neg' : ''}">${v > 0 ? '+' : ''}${v}</td>`)(pmOf(a.id)) : ''}
           <td><select id="nota-${a.id}" data-nota="${a.id}" aria-label="Nota de ${esc(a.nome || a.num)}" style="width:76px;min-height:34px;padding:4px"><option value="">–</option>${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<option${+(j.notas || {})[a.id] === n ? ' selected' : ''}>${n}</option>`).join('')}</select></td></tr>`; }).join('')}
         </tbody></table></div></section>` : ''}
 
@@ -83,6 +97,10 @@ export async function render(main, [id], ctx) {
         <div class="tw"><table><thead><tr><th>Atleta</th><th>Tempo</th></tr></thead><tbody>
         ${manList.map(a => `<tr><td><b>${esc(a.num || '–')}</b> ${esc(a.nome || '')}</td><td><input data-min="${a.id}" value="${j.minutos?.[a.id] ? mmss(j.minutos[a.id]) : ''}" inputmode="numeric" placeholder="0:00" style="width:90px;min-height:34px;padding:4px" aria-label="Tempo de ${esc(a.nome || a.num)}"></td></tr>`).join('')}
         </tbody></table></div><p class="small" id="manMsg" aria-live="polite"></p></details>` : ''}
+
+      ${mstList.length ? manualHtml(j, mstList, {soCartoes: !manual}) : manual ? '<section class="panel"><h2>Estatística à mão</h2><p class="muted">Marca primeiro a convocatória (ou importa os tempos) para escolheres os atletas.</p></section>' : ''}
+
+      ${mstList.length ? ajustesHtml(j, mstList) : ''}
 
       ${events.length ? `<section class="stack" style="gap:12px">
         <div class="row between"><h2>Estatística</h2>
@@ -101,6 +119,11 @@ export async function render(main, [id], ctx) {
           <b>${g.quarteto ? 'Em campo: ' + g.quarteto.split('-').join(' · ') + (g.gr ? ' · GR ' + esc(g.gr) : '') : 'Sem registo de quem estava em campo'}</b>
           <span>${[g.zona && 'remate ' + g.zona, g.antes && 'depois de ' + g.antes, g.lance && 'lance: ' + g.lance, g.nota].filter(Boolean).map(esc).join(' · ') || 'Sem mais detalhe marcado'}</span></div></div>`).join('')}</div>` : ''}
       </section>` : ''}
+
+      ${(() => { const cat = categorias(j), auto = categoriasAuto(j); return `<details class="panel" id="ctDet"><summary><h2 style="display:inline">Contar na época</h2> <span class="small muted">${Object.keys(CATEGORIAS).filter(c => !cat[c]).length ? 'não conta: ' + Object.keys(CATEGORIAS).filter(c => !cat[c]).map(c => CATEGORIAS[c].lbl.toLowerCase()).join(', ') : 'tudo'}</span></summary>
+        <p class="small muted">Desliga o que este jogo não tem marcado: fica fora do Excel da época em vez de contar como 0 (e não baixa as médias por 40 min). Por defeito, liga-se só o que o jogo tem.</p>
+        <div class="chips">${Object.entries(CATEGORIAS).map(([c, d]) => `<button class="chip" data-cat="${c}" aria-pressed="${!!cat[c]}">${esc(d.lbl)}${j.contar && c in j.contar && j.contar[c] !== auto[c] ? ' ✎' : ''}</button>`).join('')}</div>
+        ${j.contar && Object.keys(j.contar).length ? '<div class="row"><button class="ghost" id="ctAuto">Voltar ao automático</button></div>' : ''}</details>`; })()}
 
       <div class="row"><button class="danger" id="del">Apagar jogo</button></div>
       ${confirmDel ? '<div class="confirm">Apagar este jogo e as marcações? <button id="delY" class="primary" style="background:var(--crit);border-color:var(--crit)">Apagar</button><button id="delN">Cancelar</button></div>' : ''}`;
@@ -121,6 +144,14 @@ export async function render(main, [id], ctx) {
       if (v > 0) mins[e.target.dataset.min] = v; else delete mins[e.target.dataset.min];
       j.minutos = mins; await save(); draw(); main.querySelector('#manDet').open = true;
     });
+    manualWire(main, j, async (m, re = true) => { j.manual = m; await save(); if (re) { draw(); main.querySelector('#mstDet').open = true; } }, () => { draw(); main.querySelector('#mstDet').open = true; });
+    ajustesWire(main, j, async aj => { j.ajustes = aj; await save(); draw(); main.querySelector('#ajDet').open = true; });
+    main.querySelectorAll('[data-cat]').forEach(b => b.onclick = async () => {
+      const c = b.dataset.cat, auto = categoriasAuto(j), v = !categorias(j)[c], contar = {...(j.contar || {})};
+      if (v === auto[c]) delete contar[c]; else contar[c] = v;
+      j.contar = contar; await save(); draw(); main.querySelector('#ctDet').open = true;
+    });
+    const ca = main.querySelector('#ctAuto'); if (ca) ca.onclick = async () => { j.contar = {}; await save(); draw(); main.querySelector('#ctDet').open = true; };
     main.querySelectorAll('[data-src]').forEach(b => b.onclick = () => { srcPref = b.dataset.src; draw(); });
     const cc = main.querySelector('#copyConv'); if (cc) cc.onclick = async () => { const ok = await copy(convText()); toast(ok ? 'Convocatória copiada' : 'Não deu para copiar neste browser'); };
     const ac = main.querySelector('#allConv'); if (ac) ac.onclick = async () => { j.convocados = ats.filter(a => a.ativo !== false).map(a => a.id); await save(); draw(); };
@@ -133,6 +164,7 @@ export async function render(main, [id], ctx) {
     const s = new Set(j.convocados || []); s.has(b.dataset.conv) ? s.delete(b.dataset.conv) : s.add(b.dataset.conv);
     j.convocados = [...s]; await save(); draw();
   };
+  fecharManual();
   draw();
   return () => { main.onclick = null; if (pend) save(); };
 }

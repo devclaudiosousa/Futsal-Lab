@@ -240,3 +240,6 @@ body.live-on .app{padding-bottom:0}
 .sitbar .sit.edit.on{background:var(--warn-bg);color:var(--warn);border-color:var(--warn);border-style:solid}
 .sitbar .sit.editing{border-color:var(--warn)}
 .live .hint-edit{color:var(--warn);margin:0}
+.panel>*{min-width:0}
+.panel .list .item .main{min-width:0}
+.panel .list .item .main span{overflow-wrap:anywhere}

@@ -17,7 +17,7 @@ const ev = [{type:'golo',team:'A',jog:P('5'),assist:P('7'),parte:1,t:65,zona:'D1
   {type:'perda',team:'A',jog:P('9'),parte:2,t:3725,zona:'MO'},{type:'golo',team:'B',parte:2,t:100},{type:'golo',team:'B',parte:2,t:200}];
 const j2 = {id:'j2', data:'2026-10-11', adversario:'Lusitânia', competicao:'Taça', casa:false, convocados:['a','b','c','d','e'], notas:{}, marcador:{video:{events:ev}}};
 const sh = buildEpoca({jogos:[j2,j1], atletas, cfg:{clube:'ADRC'}});
-assert.deepEqual(Object.keys(sh), ['Jogos','Estatísticas por jogador','Por jogador e jogo','Golos','Quartetos','Minutos','Totais por jogo','Eventos','Notas']);
+assert.deepEqual(Object.keys(sh), ['Jogos','Estatísticas por jogador','Por jogador e jogo','Golos','Quartetos','Minutos','Totais por jogo','Eventos','Ajustes +-','Notas']);
 const st = sh['Estatísticas por jogador'], H = st[0], row = n => st.find(r => r[0]==n), c = (r, h) => r[H.indexOf(h)];
 const leal = row('5');
 assert.equal(c(leal,'Minutos'), 10); assert.equal(c(leal,'Golos'), 2); assert.equal(c(leal,'+'), 2); assert.equal(c(leal,'−'), 0);

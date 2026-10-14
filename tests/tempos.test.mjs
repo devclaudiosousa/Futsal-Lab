@@ -41,3 +41,42 @@ const nunes = est.find(r => r[1] === 'Pedro Nunes');
 assert.equal(nunes[h.indexOf('Minutos')], 15.6); assert.equal(nunes[h.indexOf('Jogos com minutos')], 1);
 assert.equal(sh['Jogos'][1][7], 'Tempos à mão');
 console.log('tempos ok');
+// jogo antigo à mão: golos com os 5 em campo, cartões, faltas e ajustes do treinador
+{
+  const A = ['a12', 'a4', 'a7', 'a8', 'a9'];   // GR Borges + Nunes, Sales, Rocha, Pintex
+  const j = {id: 'j2', data: '2026-10-11', adversario: 'Fonte Bastardo', convocados: ats.map(a => a.id), minutos: {a4: 900},
+    manual: {golos: [{id: 'g1', nos: true, parte: 1, min: 5, by: 'a8', ast: 'a4', on: A}, {id: 'g2', nos: false, parte: 2, on: A}, {id: 'g3', nos: true, parte: 2, by: 'a10', on: ['a12', 'a4', 'a7', 'a10', 'a11']}],
+      atletas: {a4: {am: 1, fcMO: 2}, a9: {verm: 1, fcMD: 1}}},
+    ajustes: [{atleta: 'a9', v: 1, desc: 'boa transição defensiva'}, {atleta: 'a7', v: -1, desc: 'podia ter passado e não passou'}]};
+  const sh = buildEpoca({jogos: [j], atletas: ats});
+  const st = sh['Estatísticas por jogador'], H = st[0], r = n => st.find(x => x[0] == n), c = (x, h) => x[H.indexOf(h)];
+  assert.equal(c(r('4'), '+'), 1); assert.equal(c(r('4'), '−'), 1); assert.equal(c(r('4'), 'Amarelos'), 1); assert.equal(c(r('4'), 'Faltas cometidas MO'), 2);
+  assert.equal(c(r('8'), '+/−'), 0);                               // marcou (+1), em campo no sofrido (−1)
+  assert.equal(c(r('9'), '+/−'), 0); assert.equal(c(r('9'), '+ ajuste'), 1); assert.equal(c(r('9'), 'Vermelhos'), 1);
+  assert.equal(c(r('7'), '+/−'), -2); assert.equal(c(r('7'), '− ajuste'), 1);
+  assert.equal(c(r('12'), 'Em campo golo sofrido'), 1); assert.equal(c(r('12'), 'Em campo golo marcado'), 2);
+  assert.deepEqual(sh['Jogos'][1].slice(4, 7), [2, 1, 'V']);
+  assert.ok(sh['Quartetos'].some(q => q[0] === '4-7-8-9' && q[3] === 1 && q[4] === 1));
+  assert.equal(sh['Ajustes +-'][1][5], 'boa transição defensiva');
+  assert.equal(sh['Totais por jogo'][1][9], 3);
+}
+console.log('estatística à mão ok');
+// contar por jogo: sem passes no jogo → célula vazia e fora do /40; desligar à mão
+{
+  const P = n => ({n, nome: ''});
+  const ev = [{type: 'linha', parte: 1, t: 0, court: [P('12'), P('4'), P('7'), P('8'), P('9')]}, {type: 'golo', team: 'A', jog: P('8'), parte: 1, t: 600}, {type: 'recuperacao', team: 'A', jog: P('8'), parte: 1, t: 700},
+    {type: 'fim_parte', parte: 1, t: 1200}];
+  const jv = {id: 'v', data: '2026-10-01', adversario: 'Vídeo FC', convocados: ['a8'], marcador: {video: {events: ev}}};
+  const jm = {id: 'm', data: '2026-10-02', adversario: 'À mão FC', convocados: ['a8'], minutos: {a8: 1200}, manual: {golos: [{id: 'x', nos: true, parte: 1, by: 'a8', on: ['a12', 'a4', 'a7', 'a8', 'a9']}]}};
+  let sh = buildEpoca({jogos: [jv, jm], atletas: ats});
+  let st = sh['Estatísticas por jogador'], H = st[0], r = st.find(x => x[0] == '8'), c = h => r[H.indexOf(h)];
+  assert.equal(c('Minutos'), 40); assert.equal(c('Golos'), 2); assert.equal(c('Golos /40'), 2);
+  assert.equal(c('Recuperações'), 1); assert.equal(c('Recuperações /40'), 2);   // só os 20' do jogo com vídeo
+  assert.match(sh['Jogos'][2][9], /Passes/); assert.match(sh['Jogos'][2][9], /Perdas/);
+  const pj = sh['Por jogador e jogo'], PH = pj[0];
+  assert.equal(pj.find(x => x[1] === 'À mão FC' && x[2] === '8')[PH.indexOf('Faltas cometidas MD')], '');
+  sh = buildEpoca({jogos: [jv, {...jm, contar: {golos: false}}], atletas: ats});
+  st = sh['Estatísticas por jogador']; r = st.find(x => x[0] == '8');
+  assert.equal(c('Golos'), 1); assert.equal(c('Minutos'), 40); assert.equal(c('Golos /40'), 2);
+}
+console.log('contar por jogo ok');

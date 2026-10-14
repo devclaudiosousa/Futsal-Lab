@@ -45,6 +45,8 @@ export async function render(main, params, ctx) {
       <div class="seg" role="group" aria-label="Mostrar"><button data-f="tudo">Tudo</button><button data-f="treino">Treinos</button><button data-f="jogo">Jogos</button></div>
       <div class="row"><button id="nt">+ Treino</button><button id="nj">+ Jogo</button></div>
     </div>
+    <div id="lists" class="stack" style="gap:16px"></div>
+    <h2 class="small muted" style="margin-top:8px">Excel e jogos antigos</h2>
     <details class="panel"><summary><h2 style="display:inline">Excel da época</h2></summary>
       <p class="small muted">Feito de novo a partir de todos os jogos, por isso corrigir um jogo antigo corrige o Excel seguinte. Folhas: Jogos, Estatísticas por jogador (com valores por 40 min), Minutos, Totais por jogo e Eventos.</p>
       <div class="fields">
@@ -64,8 +66,7 @@ export async function render(main, params, ctx) {
       <label class="f"><span>Tabela</span><textarea id="ttTxt" rows="6" spellcheck="false" placeholder="Jorge Borges&#9;Redes&#9;28&#9;10"></textarea></label>
       <div class="row"><button id="ttLer">Ler tabela</button></div>
       <div id="ttPrev" class="stack"></div>
-    </details>
-    <div id="lists" class="stack" style="gap:16px"></div>`;
+    </details>`;
   main.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { filtro = b.dataset.f; draw(); });
   main.querySelector('#nt').onclick = async () => { const t = await novoTreino(); ctx.go('#/treino/' + t.id); };
   main.querySelector('#csImp').onchange = async e => {

@@ -1,10 +1,10 @@
 // Funciona sem rede: guarda a app em cache e serve-a da cache; atualiza em segundo plano.
 // Uma versão nova (VERSION diferente) instala-se sozinha e a página recarrega (ver app.js).
-const VERSION = 'futsal-lab-v14';
+const VERSION = 'futsal-lab-v15';
 const SHELL = [
   './', 'index.html', 'marcador.html', 'manifest.webmanifest', 'css/app.css',
   'js/app.js', 'js/db.js', 'js/sync.js', 'js/sync/onedrive.js', 'js/live/engine.js', 'js/live/excel.js', 'js/views/aovivo.js', 'js/ui.js', 'js/data.js', 'js/stats.js', 'js/prancheta.js', 'js/exemplos.js', 'js/importar.js', 'js/importar-excel.js', 'js/importar-cs.js', 'js/importar-tempos.js', 'js/epoca-excel.js', 'js/taxonomia.js', 'js/views/taxonomia-editor.js', 'js/marcador/main.js', 'js/marcador/player.js', 'js/marcador/acerto.js', 'css/marcador.css',
-  'js/views/common.js', 'js/views/hoje.js', 'js/views/epoca.js', 'js/views/treino.js', 'js/views/campo.js', 'js/views/jogo.js',
+  'js/views/common.js', 'js/views/hoje.js', 'js/views/epoca.js', 'js/views/treino.js', 'js/views/campo.js', 'js/views/jogo.js', 'js/views/jogo-manual.js',
   'js/views/plantel.js', 'js/views/atleta.js', 'js/views/caderno.js', 'js/views/exercicio.js', 'js/views/mais.js',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png',
 ];

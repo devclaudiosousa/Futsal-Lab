@@ -87,16 +87,22 @@ export async function render(main, [id], ctx) {
       </section>
 
       ${convList.length ? `<section class="panel"><h2>Notas do jogo (1–10)</h2>
-        <div class="tw"><table><thead><tr><th>Atleta</th><th>Tempo</th><th>Golos</th>${temPM ? '<th>+/−</th>' : ''}<th>Nota</th></tr></thead><tbody>
-        ${convList.map(a => { const p = psByNum[a.num], seg = p?.seg || (manual ? j.minutos?.[a.id] : 0); return `<tr><td><b>${esc(a.num)}</b> ${esc(a.nome || '')}</td><td>${seg ? minLabel(seg) : '–'}</td><td>${p?.gol || an.P[a.id]?.gol || 0}</td>${temPM ? (v => `<td class="${v > 0 ? 'pos' : v < 0 ? 'neg' : ''}">${v > 0 ? '+' : ''}${v}</td>`)(pmOf(a.id)) : ''}
+        <div class="tw"><table><thead><tr><th>Atleta</th><th>1.ª</th><th>2.ª</th><th>Total</th><th>Golos</th>${temPM ? '<th>+/−</th>' : ''}<th>Nota</th></tr></thead><tbody>
+        ${convList.map(a => { const p = psByNum[a.num], seg = p?.seg || (manual ? j.minutos?.[a.id] : 0); return `<tr><td><b>${esc(a.num)}</b> ${esc(a.nome || '')}</td>${(x => `<td>${x?.s1 ? minLabel(x.s1) : '–'}</td><td>${x?.s2 ? minLabel(x.s2) : '–'}</td>`)(an.P[a.id])}<td>${seg || an.P[a.id]?.seg ? minLabel(seg || an.P[a.id].seg) : '–'}</td><td>${p?.gol || an.P[a.id]?.gol || 0}</td>${temPM ? (v => `<td class="${v > 0 ? 'pos' : v < 0 ? 'neg' : ''}">${v > 0 ? '+' : ''}${v}</td>`)(pmOf(a.id)) : ''}
           <td><select id="nota-${a.id}" data-nota="${a.id}" aria-label="Nota de ${esc(a.nome || a.num)}" style="width:76px;min-height:34px;padding:4px"><option value="">–</option>${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<option${+(j.notas || {})[a.id] === n ? ' selected' : ''}>${n}</option>`).join('')}</select></td></tr>`; }).join('')}
         </tbody></table></div></section>` : ''}
 
-      ${manList.length ? `<details class="panel" id="manDet"><summary><h2 style="display:inline">Tempos de jogo à mão</h2> <span class="small muted">${Object.keys(j.minutos || {}).length ? Math.round(Object.values(j.minutos).reduce((a, b) => a + b, 0) / 60) + "' no total" : 'por preencher'}</span></summary>
-        <p class="small muted">Para jogos sem Ao vivo. Escreve 15:38 ou só os minutos (28). Entram no Excel da época.</p>
-        <div class="tw"><table><thead><tr><th>Atleta</th><th>Tempo</th></tr></thead><tbody>
-        ${manList.map(a => `<tr><td><b>${esc(a.num || '–')}</b> ${esc(a.nome || '')}</td><td><input data-min="${a.id}" value="${j.minutos?.[a.id] ? mmss(j.minutos[a.id]) : ''}" inputmode="numeric" placeholder="0:00" style="width:90px;min-height:34px;padding:4px" aria-label="Tempo de ${esc(a.nome || a.num)}"></td></tr>`).join('')}
-        </tbody></table></div><p class="small" id="manMsg" aria-live="polite"></p></details>` : ''}
+      ${manList.length ? (() => { const prol = j.prolongamento || manList.some(a => (j.minutosP?.[a.id] || [])[2] || (j.minutosP?.[a.id] || [])[3]);
+        const P = prol ? ['1.ª', '2.ª', 'Prol. 1', 'Prol. 2'] : ['1.ª', '2.ª'];
+        const tot = Object.values(j.minutos || {}).reduce((a, b) => a + b, 0);
+        return `<details class="panel" id="manDet"><summary><h2 style="display:inline">Tempos de jogo à mão</h2> <span class="small muted">${tot ? Math.round(tot / 60) + "' no total" : 'por preencher'}</span></summary>
+        <p class="small muted">Para jogos sem Ao vivo. Escreve 15:38 ou só os minutos (12). Com as partes preenchidas, o total faz-se sozinho; também podes escrever só o total.</p>
+        <label class="row small"><input type="checkbox" id="manProl" ${prol ? 'checked' : ''}> Houve prolongamento</label>
+        <div class="tw"><table><thead><tr><th>Atleta</th>${P.map(x => `<th>${x}</th>`).join('')}<th>Total</th></tr></thead><tbody>
+        ${manList.map(a => { const pp = j.minutosP?.[a.id] || [], t = j.minutos?.[a.id] || 0, temP = pp.some(Boolean);
+          const inp = (k, v, lbl, ro) => `<input data-min="${a.id}" data-p="${k}" value="${v ? mmss(v) : ''}" inputmode="numeric" placeholder="0:00" ${ro ? 'readonly tabindex="-1" style="width:70px;min-height:34px;padding:4px;background:transparent;border-color:transparent;font-weight:600"' : 'style="width:70px;min-height:34px;padding:4px"'} aria-label="${lbl} de ${esc(a.nome || a.num)}">`;
+          return `<tr><td><b>${esc(a.num || '–')}</b> ${esc(a.nome || '')}</td>${P.map((x, i) => `<td>${inp(i, pp[i], x)}</td>`).join('')}<td>${inp('t', t, 'Total', temP)}</td></tr>`; }).join('')}
+        </tbody></table></div><p class="small" id="manMsg" aria-live="polite"></p></details>`; })() : ''}
 
       ${mstList.length ? manualHtml(j, mstList, {soCartoes: !manual}) : manual ? '<section class="panel"><h2>Estatística à mão</h2><p class="muted">Marca primeiro a convocatória (ou importa os tempos) para escolheres os atletas.</p></section>' : ''}
 
@@ -138,12 +144,19 @@ export async function render(main, [id], ctx) {
     main.querySelector('#casa').onchange = async e => { j.casa = e.target.value === '1'; await save(); draw(); };
     main.querySelectorAll('[data-nota]').forEach(s => s.onchange = async e => { j.notas = {...j.notas, [e.target.dataset.nota]: e.target.value ? +e.target.value : undefined}; if (!e.target.value) delete j.notas[e.target.dataset.nota]; await save(); });
     main.querySelectorAll('[data-min]').forEach(inp => inp.onchange = async e => {
-      const v = lerTempo(e.target.value), m = main.querySelector('#manMsg');
-      if (v == null) { m.textContent = 'Tempo inválido: usa 15:38 ou 28.'; m.style.color = 'var(--crit)'; return; }
-      const mins = {...(j.minutos || {})};
-      if (v > 0) mins[e.target.dataset.min] = v; else delete mins[e.target.dataset.min];
-      j.minutos = mins; await save(); draw(); main.querySelector('#manDet').open = true;
+      const v = lerTempo(e.target.value), m = main.querySelector('#manMsg'), id = e.target.dataset.min, k = e.target.dataset.p;
+      if (v == null) { m.textContent = 'Tempo inválido: usa 15:38 ou 12.'; m.style.color = 'var(--crit)'; return; }
+      const mins = {...(j.minutos || {})}, mp = {...(j.minutosP || {})};
+      if (k === 't') { delete mp[id]; if (v > 0) mins[id] = v; else delete mins[id]; }   // só o total, sem partes
+      else {
+        const pp = [...(mp[id] || [0, 0, 0, 0])]; while (pp.length < 4) pp.push(0);
+        pp[+k] = v;
+        const t = pp.reduce((a, b) => a + (+b || 0), 0);
+        if (t > 0) { mp[id] = pp; mins[id] = t; } else { delete mp[id]; delete mins[id]; }
+      }
+      j.minutos = mins; j.minutosP = mp; await save(); draw(); main.querySelector('#manDet').open = true;
     });
+    const mpr = main.querySelector('#manProl'); if (mpr) mpr.onchange = async () => { j.prolongamento = mpr.checked; await save(); draw(); main.querySelector('#manDet').open = true; };
     manualWire(main, j, async (m, re = true) => { j.manual = m; await save(); if (re) { draw(); main.querySelector('#mstDet').open = true; } }, () => { draw(); main.querySelector('#mstDet').open = true; });
     ajustesWire(main, j, async aj => { j.ajustes = aj; await save(); draw(); main.querySelector('#ajDet').open = true; });
     main.querySelectorAll('[data-cat]').forEach(b => b.onclick = async () => {

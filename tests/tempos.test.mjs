@@ -80,3 +80,24 @@ console.log('estatística à mão ok');
   assert.equal(c('Golos'), 1); assert.equal(c('Minutos'), 40); assert.equal(c('Golos /40'), 2);
 }
 console.log('contar por jogo ok');
+// minutos por parte: à mão (com prolongamento) e do Ao vivo
+{
+  const jm = {id: 'm', data: '2026-10-02', adversario: 'Partes FC', convocados: ['a8', 'a4'], minutos: {a8: 1500, a4: 600}, minutosP: {a8: [600, 600, 180, 120]}};
+  const sh = buildEpoca({jogos: [jm], atletas: ats});
+  const pj = sh['Por jogador e jogo'], H = pj[0], r = n => pj.find(x => x[2] === n), c = (x, h) => x[H.indexOf(h)];
+  assert.deepEqual(['Minutos 1.ª parte', 'Minutos 2.ª parte', 'Minutos prolongamento 1', 'Minutos prolongamento 2', 'Minutos'].map(h => c(r('8'), h)), [10, 10, 3, 2, 25]);
+  assert.deepEqual(['Minutos 1.ª parte', 'Minutos prolongamento 1', 'Minutos'].map(h => c(r('4'), h)), ['', '', 10]);   // só o total
+}
+{
+  const L = await import('../js/live/engine.js');
+  const T = s => 1e6 + s * 1000;
+  const pl = ats.slice(0, 7).map(a => ({id: a.id, num: a.num, nome: a.nome, pos: ''}));
+  let live = L.newLive({plantel: pl});
+  live = L.push(live, {type: 'kickoff'}, T(0)); live = L.push(live, {type: 'break'}, T(600));
+  live = L.push(live, {type: 'kickoff'}, T(700)); live = L.push(live, {type: 'sub', off: live.court0.pivo, on: pl[5].id}, T(1000)); live = L.push(live, {type: 'break'}, T(1300));
+  const sh = buildEpoca({jogos: [{id: 'l', data: '2026-10-03', adversario: 'Vivo', convocados: pl.map(p => p.id), aovivo: live}], atletas: ats});
+  const st = sh['Estatísticas por jogador'], H = st[0], piv = st.find(x => x[0] == pl[4].num), ent = st.find(x => x[0] == pl[5].num);
+  assert.deepEqual([piv[H.indexOf('Minutos 1.ª parte')], piv[H.indexOf('Minutos 2.ª parte')], piv[H.indexOf('Minutos')]], [10, 5, 15]);
+  assert.deepEqual([ent[H.indexOf('Minutos 1.ª parte')], ent[H.indexOf('Minutos 2.ª parte')]], [0, 5]);
+}
+console.log('minutos por parte ok');

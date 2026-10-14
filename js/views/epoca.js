@@ -154,7 +154,7 @@ async function tempos(main, ctx) {
         casa: box.querySelector(`[data-tcasa="${c}"]`).value === '1', hora: ''};
       const minutos = {};
       linhas.forEach((l, i) => { if (ids[i] && l.tempos[c] > 0) minutos[ids[i]] = (minutos[ids[i]] || 0) + l.tempos[c]; });
-      j = await db.put('jogos', {...j, minutos, convocados: [...new Set([...(j.convocados || []), ...Object.keys(minutos)])]});
+      j = await db.put('jogos', {...j, minutos, minutosP: {}, convocados: [...new Set([...(j.convocados || []), ...Object.keys(minutos)])]});
       out.push(`${j.data || ''} ${j.adversario || ''}: ${Object.keys(minutos).length} atletas`);
     }
     toast('Tempos guardados');

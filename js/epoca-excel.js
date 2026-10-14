@@ -32,7 +32,7 @@ export function fontesJogo(j) {
   return {live, acoes};
 }
 
-const zeros = () => ({seg: 0, gol: 0, ast: 0, mais: 0, menos: 0, ajMais: 0, ajMenos: 0, gmCampo: 0, gsCampo: 0, rem: 0, enq: 0, pc: 0, pf: 0, perd: 0, recup: 0,
+const zeros = () => ({seg: 0, s1: 0, s2: 0, s3: 0, s4: 0, gol: 0, ast: 0, mais: 0, menos: 0, ajMais: 0, ajMenos: 0, gmCampo: 0, gsCampo: 0, rem: 0, enq: 0, pc: 0, pf: 0, perd: 0, recup: 0,
   fcMD: 0, fcMO: 0, fsMD: 0, fsMO: 0, am: 0, verm: 0});
 
 // Tudo o que se sabe de um jogo, por jogador (chave = id do atleta, ou "#num" se não estiver no plantel)
@@ -51,15 +51,18 @@ export function analisarJogo(j, {atById, atByNum}) {
   const dl = live ? derive(live) : null;
   if (dl) {
     minSrc = 'Ao vivo (tempo útil)';
-    for (const p of dl.players) if (p.totalPlay > 0) g(p.num, p.nome, p.id).seg += p.totalPlay;
+    for (const p of dl.players) if (p.totalPlay > 0) { const x = g(p.num, p.nome, p.id); x.seg += p.totalPlay; for (let i = 0; i < 4; i++) x['s' + (i + 1)] += p.play[i] || 0; }
     segEvents = toBancoEvents(live);
   } else if (ev.some(e => e.type === 'linha')) {
     minSrc = acoes.src + ' (substituições)';
-    for (const s of segments(ev)) for (const c of s.court) if (c) g(c.n, c.nome).seg += s.e - s.s;
+    for (const s of segments(ev)) for (const c of s.court) if (c) { const x = g(c.n, c.nome), d = s.e - s.s; x.seg += d; if (s.parte >= 1 && s.parte <= 4) x['s' + s.parte] += d; }
     segEvents = ev;
   } else if (j.minutos && Object.keys(j.minutos).length) {
     minSrc = 'Tempos à mão';
-    for (const [id, s] of Object.entries(j.minutos)) if (s > 0 && atById[id]) g(atById[id].num, atById[id].nome, id).seg += s;
+    for (const [id, s] of Object.entries(j.minutos)) if (s > 0 && atById[id]) {
+      const x = g(atById[id].num, atById[id].nome, id), pp = j.minutosP?.[id];
+      x.seg += s; if (pp) for (let i = 0; i < 4; i++) x['s' + (i + 1)] += +pp[i] || 0;
+    }
   }
 
   // ações por jogador
@@ -163,7 +166,7 @@ export function analisarJogo(j, {atById, atByNum}) {
 // Estatísticas que um jogo conta para a época. Por defeito só as que o jogo tem de onde vir (um jogo sem vídeo
 // não tem passes: não conta como 0 passes); o treinador pode ligar/desligar cada uma no jogo (j.contar).
 export const CATEGORIAS = {
-  minutos: {lbl: 'Minutos', campos: ['seg']},
+  minutos: {lbl: 'Minutos', campos: ['seg', 's1', 's2', 's3', 's4']},
   golos: {lbl: 'Golos e +/−', campos: ['gol', 'ast', 'mais', 'menos', 'ajMais', 'ajMenos', 'gmCampo', 'gsCampo']},
   remates: {lbl: 'Remates', campos: ['rem', 'enq']},
   passes: {lbl: 'Passes', campos: ['pc', 'pf']},
@@ -201,7 +204,7 @@ export function buildEpoca({jogos, atletas, cfg = {}, filtro = {}}) {
   const meta = {};
   const jogosRows = [['Data', 'Competição', 'Adversário', 'Casa/Fora', `Golos ${nos}`, 'Golos adversário', 'Resultado', 'Minutos de', 'Ações de', 'Não conta para a época']];
   const totRows = [['Data', 'Adversário', `Golos ${nos}`, 'Golos adversário', `Remates ${nos}`, 'Remates adversário', 'Enquadrados', 'Perdas', 'Recuperações', `Faltas ${nos}`, 'Faltas adversário', 'Cantos']];
-  const pjHead = ['Data', 'Adversário', 'Nº', 'Jogador', 'Minutos', 'Golos', 'Assistências', '+', '−', '+/−', '+ ajuste', '− ajuste', 'Em campo golo marcado', 'Em campo golo sofrido',
+  const pjHead = ['Data', 'Adversário', 'Nº', 'Jogador', 'Minutos 1.ª parte', 'Minutos 2.ª parte', 'Minutos prolongamento 1', 'Minutos prolongamento 2', 'Minutos', 'Golos', 'Assistências', '+', '−', '+/−', '+ ajuste', '− ajuste', 'Em campo golo marcado', 'Em campo golo sofrido',
     'Faltas cometidas MD', 'Faltas cometidas MO', 'Faltas sofridas MD', 'Faltas sofridas MO', 'Amarelos', 'Vermelhos', 'Nota'];
   const pjRows = [pjHead];
   const ajRows = [['Data', 'Adversário', 'Nº', 'Jogador', '+/−', 'Descrição']];
@@ -237,7 +240,7 @@ export function buildEpoca({jogos, atletas, cfg = {}, filtro = {}}) {
       const algo = x.seg || x.mais || x.menos || x.gmCampo || x.fcMD + x.fcMO + x.fsMD + x.fsMO + x.am + x.verm || nota;
       if (!conv.has(k) && !algo) continue;
       const G = vazio('golos'), F = vazio('faltas'), C = vazio('cartoes'), b = (off2, v) => (off2 ? '' : v);
-      pjRows.push([j.data || '', j.adversario || '', numK(k, an.info), nomeK(k, an.info).replace(/^\S+\s/, ''), b(vazio('minutos'), min1(x.seg)),
+      pjRows.push([j.data || '', j.adversario || '', numK(k, an.info), nomeK(k, an.info).replace(/^\S+\s/, ''), ...[x.s1, x.s2, x.s3, x.s4].map((v, i) => b(vazio('minutos') || !(x.s1 || x.s2 || x.s3 || x.s4) || (i > 1 && !v), min1(v))), b(vazio('minutos'), min1(x.seg)),
         ...[x.gol, x.ast, x.mais, x.menos, x.mais - x.menos, x.ajMais, x.ajMenos, x.gmCampo, x.gsCampo].map(v => b(G, v)),
         ...[x.fcMD, x.fcMO, x.fsMD, x.fsMO].map(v => b(F, v)), b(C, x.am), b(C, x.verm), nota || '']);
     }
@@ -269,13 +272,13 @@ export function buildEpoca({jogos, atletas, cfg = {}, filtro = {}}) {
 
   const ks = Object.keys(season).filter(k => { const s = season[k]; return s.conv || s.seg || s.mais || s.menos || s.rem || s.pc || s.fcMD + s.fcMO + s.fsMD + s.fsMO; })
     .sort((a, b) => byNum({num: numK(a, meta)}, {num: numK(b, meta)}));
-  const statRows = [['Nº', 'Jogador', 'Posição', 'Convocado', 'Jogos com minutos', 'Minutos', 'Golos', 'Assistências', '+', '−', '+/−', '+ ajuste', '− ajuste',
+  const statRows = [['Nº', 'Jogador', 'Posição', 'Convocado', 'Jogos com minutos', 'Minutos 1.ª parte', 'Minutos 2.ª parte', 'Minutos prolongamento 1', 'Minutos prolongamento 2', 'Minutos', 'Golos', 'Assistências', '+', '−', '+/−', '+ ajuste', '− ajuste',
     'Em campo golo marcado', 'Em campo golo sofrido', 'Faltas cometidas MD', 'Faltas cometidas MO', 'Faltas sofridas MD', 'Faltas sofridas MO', 'Amarelos', 'Vermelhos',
     'Remates', 'Enquadrados', 'Passes certos', 'Passes falhados', '% passe', 'Perdas', 'Recuperações',
     'Golos /40', '+/− /40', 'Remates /40', 'Recuperações /40', 'Perdas /40', 'Nota média']];
   for (const k of ks) {
     const s = season[k];
-    statRows.push([numK(k, meta), nomeK(k, meta).replace(/^\S+\s/, ''), atById[k]?.posicao || meta[k]?.posicao || '', s.conv, s.jogos, min1(s.seg), s.gol, s.ast, s.mais, s.menos, s.mais - s.menos, s.ajMais, s.ajMenos,
+    statRows.push([numK(k, meta), nomeK(k, meta).replace(/^\S+\s/, ''), atById[k]?.posicao || meta[k]?.posicao || '', s.conv, s.jogos, min1(s.s1), min1(s.s2), s.s3 ? min1(s.s3) : '', s.s4 ? min1(s.s4) : '', min1(s.seg), s.gol, s.ast, s.mais, s.menos, s.mais - s.menos, s.ajMais, s.ajMenos,
       s.gmCampo, s.gsCampo, s.fcMD, s.fcMO, s.fsMD, s.fsMO, s.am, s.verm, s.rem, s.enq, s.pc, s.pf, pct(s.pc, s.pf), s.perd, s.recup,
       ...(r => [per40(r.g.gol || 0, r.g.seg), per40((r.g.mais || 0) - (r.g.menos || 0), r.g.seg), per40(r.r.rem || 0, r.r.seg), per40(r.p.recup || 0, r.p.seg), per40(r.p.perd || 0, r.p.seg)])(
         {g: s.r40.golos || {seg: 0}, r: s.r40.remates || {seg: 0}, p: s.r40.perdas || {seg: 0}}),
@@ -291,7 +294,7 @@ export function buildEpoca({jogos, atletas, cfg = {}, filtro = {}}) {
     'Minutos': minRows, 'Totais por jogo': totRows, 'Eventos': evRows, 'Ajustes +-': ajRows,
     'Notas': [['Como ler'], ['+ : cada golo ou assistência vale +1. − : cada golo sofrido com o jogador em campo vale −1. +/− = + menos −.'],
       ['Os ajustes do treinador no pós-jogo (+1 ou −1 com descrição) entram no + e no −; a folha "Ajustes +-" lista cada um.'],
-      ['Faltas MD/MO tal como marcadas, do nosso ponto de vista (MD = no nosso meio-campo defensivo).'], ['O GR conta como qualquer jogador: leva − nos golos sofridos em que está em campo.'], ['Minutos em tempo útil quando o jogo foi marcado no banco.'],
+      ['Faltas MD/MO tal como marcadas, do nosso ponto de vista (MD = no nosso meio-campo defensivo).'], ['O GR conta como qualquer jogador: leva − nos golos sofridos em que está em campo.'], ['Minutos em tempo útil quando o jogo foi marcado no banco. Total = 1.ª + 2.ª parte + prolongamentos; nos jogos com tempos à mão só há minutos por parte se os escreveste.'],
       ['Quarteto: os quatro jogadores de campo, sem o GR.'],
       ['Cada jogo só conta nas estatísticas que tem (ver "Não conta para a época" na folha Jogos): um jogo sem passes marcados não conta como 0 passes. Os valores /40 usam só os minutos dos jogos que têm essa estatística.']],
   };

@@ -55,12 +55,12 @@ export async function render(main, [id], ctx) {
       ${editPresets ? '<p class="small hint-edit">Toca numa situação para definir os jogadores do preset. Carrega em ✓ Presets para voltar a marcar.</p>' : ''}
 
       <div class="clocks">
-        <div class="cl"><span>Parte</span><b id="lvPer">${d.per < 0 ? '–' : esc(per.lbl)}</b></div>
+        <div class="cl"><span>Parte</span><b id="lvPer">${d.per < 0 ? '–' : esc(pc(per.lbl))}</b></div>
         <div class="cl"><span>Tempo</span><b id="lvRun" class="${d.paused ? 'held' : ''}">${L.clock(d.run)}</b></div>
         <div class="cl big"><span>Tempo útil</span><b id="lvEff" class="${d.paused || d.stopped ? 'held' : ''}${d.effLeft < 0 ? ' over' : ''}">${running ? L.clock(d.effLeft) : '--:--'}</b></div>
       </div>
       <div class="ctl">
-        ${d.canKickoff ? `<button class="primary" data-act="kickoff" ${d.nextPeriod ? '' : 'disabled'}>Início ${esc(d.nextPeriod || '')}</button>` : ''}
+        ${d.canKickoff ? `<button class="primary" data-act="kickoff" ${d.nextPeriod ? '' : 'disabled'}>${d.per < 0 ? 'Início' : 'Início ' + esc(pc(d.nextPeriod || ''))}</button>` : ''}
         ${running ? `<button data-act="stop" class="${d.stopped ? 'tog' : ''}" ${d.paused ? 'disabled' : ''}>${d.stopped ? 'Retomar' : 'Paragem'}</button>
           <button data-act="pause" class="${d.paused ? 'tog' : ''}">${d.paused ? 'Continuar' : 'Pausa'}</button>
           <button data-act="break">Fim da parte</button>` : ''}
@@ -114,7 +114,7 @@ export async function render(main, [id], ctx) {
       const det = e.type === 'goal' && e.team === 'nos' ? [e.by ? nome(e.by) : '<span class="pill warn">sem autor</span>', e.ast ? 'assist. ' + nome(e.ast) : ''].filter(Boolean).join(' · ')
         : e.type === 'shot' ? (e.by ? nome(e.by) : '<span class="pill warn">sem autor</span>')
         : e.type === 'foul' ? [e.by ? nome(e.by) : '<span class="pill warn">sem jogador</span>', e.zona || '<span class="pill warn">sem zona</span>'].join(' · ') : '';
-      return `<div class="item"><span class="pill${e.type === 'goal' ? (e.team === 'nos' ? ' ok' : ' crit') : ''}">${esc(live.periods[r.per]?.lbl || '')} ${L.clock(r.eff)}</span>
+      return `<div class="item"><span class="pill${e.type === 'goal' ? (e.team === 'nos' ? ' ok' : ' crit') : ''}">${esc(pc(live.periods[r.per]?.lbl))} ${L.clock(r.eff)}</span>
         <div class="main"><b>${L2[e.type](e)}</b><span>${det}</span></div>
         ${e.type === 'goal' && e.team === 'adv' ? '' : `<button class="ghost" data-edit="${e.id}">Editar</button>`}<button class="ghost danger icon" data-del="${e.id}" aria-label="Apagar">✕</button></div>`;
     }).join('')}</div>`;
@@ -122,14 +122,15 @@ export async function render(main, [id], ctx) {
   function hint(d) {
     if (sel) return 'Toca no jogador que entra ou sai. Toca outra vez para cancelar.';
     if (d.phase === 'pre') return 'Escolhe o cinco inicial: toca num jogador em campo e noutro do banco para trocar. Pressão longa no cartão muda a posição.';
-    if (d.phase === 'break') return `Intervalo. ${d.nextPeriod ? 'Ajusta o cinco e carrega em Início ' + d.nextPeriod + '.' : ''}`;
+    if (d.phase === 'break' && d.per >= 1) return d.nextPeriod ? `Fim ${d.per >= 2 ? 'do' : 'da'} ${pn(live.periods[d.per].lbl).toLowerCase()}. ${d.per >= 2 ? 'Para o segundo prolongamento' : 'Se houver prolongamento'}, ajusta o cinco e carrega em Início ${pc(d.nextPeriod)}; se não, o jogo está terminado.` : 'Jogo terminado.';
+    if (d.phase === 'break') return `Intervalo. ${d.nextPeriod ? 'Ajusta o cinco e carrega em Início ' + pc(d.nextPeriod) + '.' : ''}`;
     if (d.phase === 'end') return 'Jogo terminado.';
     return 'Toque no golo ou remate soma; pressão longa anula o último. Pressão longa numa situação define o preset.';
   }
   function tabela(d) {
     const pers = live.periods.map((p, i) => i).filter(i => i <= Math.max(0, d.per));
     const rows = [['Rotações', p => i => p.rot[i]], ['Tempo útil', p => i => L.clock(p.play[i])], ['Descanso', p => i => L.clock(p.rest[i])], ['J/D', p => i => p.wr[i].toFixed(2)], ['% da parte', p => i => p.pct[i] + '%']];
-    return `<div class="tw"><table><thead><tr><th>Jogador</th>${pers.map(i => rows.map(([n]) => `<th>${esc(live.periods[i].lbl)} ${n}</th>`).join('')).join('')}<th>Total útil</th><th>Total descanso</th></tr></thead><tbody>
+    return `<div class="tw"><table><thead><tr><th>Jogador</th>${pers.map(i => rows.map(([n]) => `<th>${esc(pc(live.periods[i].lbl))} ${n}</th>`).join('')).join('')}<th>Total útil</th><th>Total descanso</th></tr></thead><tbody>
       ${d.players.map(p => `<tr><td><b>${esc(p.num)}</b> ${esc(p.nome || '')}</td>${pers.map(i => rows.map(([, f]) => `<td>${f(p)(i)}</td>`).join('')).join('')}<td>${L.clock(p.totalPlay)}</td><td>${L.clock(p.totalRest)}</td></tr>`).join('')}
     </tbody></table></div>`;
   }
@@ -178,7 +179,7 @@ export async function render(main, [id], ctx) {
     if (a === 'kickoff') add({type: 'kickoff'});
     else if (a === 'stop') add({type: 'stop'});
     else if (a === 'pause') add({type: 'pause'});
-    else if (a === 'break') { if (confirm(`Terminar a ${live.periods[d.per].lbl}?`)) add({type: 'break'}); }
+    else if (a === 'break') { if (confirm(`Terminar ${/Prol/.test(pn(live.periods[d.per].lbl)) ? 'o' : 'a'} ${pn(live.periods[d.per].lbl).toLowerCase()}?`)) add({type: 'break'}); }
     else if (a === 'undo') { const n = L.undoLineupChange(live); if (n === live) toast('Nada para desfazer'); else set(n); }
     else if (a === 'repor') set(L.repor(live));
     else if (a === 'presets') { editPresets = !editPresets; draw(); }
@@ -298,6 +299,11 @@ export async function render(main, [id], ctx) {
   return () => { clearInterval(iv); document.removeEventListener('visibilitychange', vis); document.body.classList.remove('live-on'); try { wake?.release(); } catch (e) {} };
 }
 
+// nomes das partes no ecrã (no Excel ficam 1H/2H/ET1/ET2, como no Control-Stats)
+const PN = {'1H': '1.ª parte', '2H': '2.ª parte', ET1: 'Prolongamento 1', ET2: 'Prolongamento 2'};
+const pn = l => PN[l] || l || '';
+const PC = {'1H': '1.ª', '2H': '2.ª', ET1: 'Prol. 1', ET2: 'Prol. 2'};
+const pc = l => PC[l] || l || '';
 const apelido = n => { const w = (n || '').trim().split(/\s+/); return w.length > 1 ? w.at(-1) : w[0] || ''; };
 const short = s => (s || '').length > 12 ? s.slice(0, 11) + '…' : s;
 

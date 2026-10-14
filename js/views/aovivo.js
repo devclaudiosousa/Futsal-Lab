@@ -13,6 +13,21 @@ export async function render(main, [id], ctx) {
   if (!j) { main.innerHTML = '<div class="empty">Este jogo já não existe.<a class="btn" href="#/epoca">Voltar à época</a></div>'; return; }
   const cfg = await config();
   let live = j.aovivo || await novoLive(j);
+  // Antes do início do jogo o plantel acompanha a convocatória (e o plantel da app, se mudou entretanto)
+  if (!live.events.some(e => e.type === 'kickoff')) {
+    const fresh = await novoLive(j);
+    const ids = new Set(fresh.plantel.map(p => p.id));
+    const courtOk = L.SLOTS.every(s => live.court0?.[s] == null || ids.has(live.court0[s])) && L.SLOTS.some(s => live.court0?.[s]);
+    live = {...live, plantel: fresh.plantel, court0: courtOk ? live.court0 : fresh.court0,
+      events: live.events.filter(e => [e.off, e.on, e.p].every(x => x == null || ids.has(x))),
+      presets: Object.keys(live.presets || {}).length ? live.presets : fresh.presets};
+  }
+  if (!live.plantel.length) {
+    main.innerHTML = `<div class="hero"><span class="kick">Ao vivo</span><h3>Sem jogadores para este jogo</h3>
+      <p class="muted">Põe o plantel primeiro. Se vens do Control-Stats, em Plantel carrega em <i>Importar Excel do Control-Stats</i> com o teu ficheiro de equipa: traz os jogadores, as posições e os presets das situações.</p>
+      <div class="row"><a class="btn primary" href="#/plantel">Ir ao plantel</a><a class="btn" href="#/jogo/${j.id}">Convocatória do jogo</a></div></div>`;
+    return;
+  }
   let sel = null, modal = null, showTab = false, showReg = false, wake = null;
   document.body.classList.add('live-on');
 

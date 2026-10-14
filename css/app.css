@@ -185,7 +185,7 @@ td.pos{color:var(--ok);font-weight:600} td.neg{color:var(--crit);font-weight:600
 .live .pressing{transform:scale(.97);border-color:var(--muted)}
 .squad{display:grid;gap:12px}
 .squad .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
-.pc{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"no nm slot" "tm tm meta";gap:2px 8px;text-align:left;justify-content:stretch;align-items:center;min-height:72px;padding:8px 10px;background:var(--surface);user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.pc{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"no nm slot" "tm tm meta" "tot tot tot";gap:2px 8px;text-align:left;justify-content:stretch;align-items:center;min-height:72px;padding:8px 10px;background:var(--surface);user-select:none;-webkit-user-select:none;touch-action:manipulation}
 .pc.on{border-left:4px solid var(--team-a)}
 .pc.sel{outline:3px solid var(--accent);outline-offset:-1px;background:var(--accent-soft)}
 .pc .no{grid-area:no;font:700 22px/1 var(--display)}
@@ -233,3 +233,5 @@ body.live-on .app{padding-bottom:0}
 .ios-banner button{min-height:28px;padding:2px 8px;flex:none}
 @media (min-width:900px){.ios-banner{bottom:16px;left:auto;max-width:520px}}
 .big-live{min-height:52px;font-size:17px;padding:10px 20px}
+
+.pc .tot{grid-area:tot;font-size:12px;color:var(--muted)}

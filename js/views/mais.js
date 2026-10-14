@@ -57,7 +57,9 @@ export async function render(main, params, ctx) {
     <section class="panel"><h2>Instalar</h2>
       <p class="muted">No Android, abre o menu do Chrome e escolhe <b>Adicionar ao ecrã principal</b>. A app abre sem barra do browser e funciona sem rede depois de aberta uma vez.</p>
       <p class="small muted">Os dados ficam no browser deste aparelho. Limpar os dados do site apaga-os; mantém a sincronização ligada ou guarda cópias.</p>
+      <p class="small muted">Versão instalada: <b id="appVer">—</b></p>
     </section>`;
+  caches?.keys?.().then(k => { const v = k.filter(x => x.startsWith('futsal-lab-')).sort().pop(); const el = main.querySelector('#appVer'); if (el && v) el.textContent = v.replace('futsal-lab-', ''); }).catch(() => {});
 
   const saveCfg = async () => { await setConfig({clube: main.querySelector('#clube').value.trim() || 'Nós', epoca: main.querySelector('#epoca').value.trim()}); };
   ['clube', 'epoca'].forEach(k => main.querySelector('#' + k).onchange = saveCfg);

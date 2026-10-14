@@ -92,7 +92,8 @@ export async function render(main, [id], ctx) {
     return `<button class="pc${p.active ? ' on' : ''}${sel === p.id ? ' sel' : ''}" data-p="${p.id}">
       <span class="no">${esc(p.num)}</span><span class="nm" title="${esc(p.nome || '')}">${esc(apelido(p.nome))}</span>
       ${p.slot ? `<span class="slot">${L.SLOT_LBL[p.slot]}</span>` : ''}
-      <span class="tm mono" data-tm="${p.id}">${L.clock(t)}</span>
+      <span class="tm mono" data-tm="${p.id}" title="${p.active ? 'Em campo desde a última troca' : 'A descansar desde a última troca'}">${L.clock(t)}</span>
+      <span class="tot mono" data-tot="${p.id}" title="Tempo útil jogado no jogo">total ${L.clock(p.totalPlay)}</span>
       <span class="meta mono"><span title="Entradas nesta parte">↻${p.rot[Math.max(0, d.per)]}</span><span title="Rácio jogo/descanso desde a última troca" class="${p.stintWR > 1.1 ? 'hot' : p.stintWR < 0.9 ? 'cool' : ''}">${p.stintWR.toFixed(2)}</span></span>
     </button>`;
   }
@@ -271,14 +272,19 @@ export async function render(main, [id], ctx) {
   }
 
   // Relógios e tempos dos cartões atualizam sem redesenhar a página
+  // Relógios, tempos dos cartões e tabela atualizam sem redesenhar a página (também com um popup aberto)
   const tick = () => {
-    if (modal) return;
     const d = L.derive(live, Date.now());
     const set2 = (sel2, v) => { const el = main.querySelector(sel2); if (el && el.textContent !== v) el.textContent = v; };
     set2('#lvRun', L.clock(d.run));
     if (d.phase === 'live') set2('#lvEff', L.clock(d.effLeft));
     main.querySelector('#lvEff')?.classList.toggle('over', d.phase === 'live' && d.effLeft < 0);
-    for (const p of d.players) set2(`[data-tm="${p.id}"]`, L.clock(p.active ? p.stintPlay : p.stintRest));
+    for (const p of d.players) {
+      set2(`[data-tm="${p.id}"]`, L.clock(p.active ? p.stintPlay : p.stintRest));
+      set2(`[data-tot="${p.id}"]`, 'total ' + L.clock(p.totalPlay));
+    }
+    const tb = main.querySelector('#tabDet');
+    if (tb?.open && d.phase === 'live') { const box = tb.querySelector('.tw'); if (box) box.outerHTML = tabela(d); }
   };
   const iv = setInterval(tick, 500);
   const vis = () => { if (document.visibilityState === 'visible') { keepAwake(); draw(); } };

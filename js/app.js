@@ -87,7 +87,17 @@ onSync(s => {
 $('#sync').onclick = async () => { const c = await db.meta('sync'); if (c?.url) syncNow(); else location.hash = '#/mais'; };
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW', e));
+  navigator.serviceWorker.register('./sw.js', {updateViaCache: 'none'}).then(reg => {
+    // procura versão nova ao abrir e sempre que a app volta ao ecrã
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+  }).catch(e => console.warn('SW', e));
+  // versão nova ativa: recarrega já, exceto a meio do Ao vivo (aí recarrega ao sair desse ecrã)
+  let had = !!navigator.serviceWorker.controller, pend = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!had) { had = true; return; }
+    if (location.hash.startsWith('#/aovivo')) pend = true; else location.reload();
+  });
+  addEventListener('hashchange', () => { if (pend && !location.hash.startsWith('#/aovivo')) location.reload(); });
 }
 try { navigator.storage?.persist?.(); } catch (e) {}
 

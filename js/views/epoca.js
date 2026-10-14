@@ -7,6 +7,8 @@ import {buildEpoca} from '../epoca-excel.js';
 import {loadXLSX} from '../live/excel.js';
 import {guardarNoOneDrive} from '../sync.js';
 import {importarControlStats} from '../importar-cs.js';
+import {lerTabela, casar} from '../importar-tempos.js';
+import {mmss} from '../stats.js';
 
 let filtro = 'tudo';
 
@@ -57,6 +59,12 @@ export async function render(main, params, ctx) {
       <p class="small muted"><b>Marcador de vídeo antigo:</b> lá, carrega em <i>Guardar CSV</i>. Aqui, abre o jogo → <i>Vídeo</i> → abre o vídeo → <i>Abrir CSV</i>.</p>
       <p class="small" id="csMsg" aria-live="polite"></p>
     </details>
+    <details class="panel" id="ttDet"><summary><h2 style="display:inline">Tempos de jogo de jogos antigos</h2></summary>
+      <p class="small muted">Cola uma tabela com uma linha por atleta: <b>nome</b>, posição (opcional) e um tempo por jogo, por exemplo <code>Pedro Nunes  Fixo  15:38  15:34</code>. "15:38" = 15 min 38 s, "28" = 28 min, "0" = não jogou. Cada coluna de tempos é um jogo.</p>
+      <label class="f"><span>Tabela</span><textarea id="ttTxt" rows="6" spellcheck="false" placeholder="Jorge Borges&#9;Redes&#9;28&#9;10"></textarea></label>
+      <div class="row"><button id="ttLer">Ler tabela</button></div>
+      <div id="ttPrev" class="stack"></div>
+    </details>
     <div id="lists" class="stack" style="gap:16px"></div>`;
   main.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { filtro = b.dataset.f; draw(); });
   main.querySelector('#nt').onclick = async () => { const t = await novoTreino(); ctx.go('#/treino/' + t.id); };
@@ -88,5 +96,67 @@ export async function render(main, params, ctx) {
     finally { btn.disabled = false; }
   };
   main.querySelector('#nj').onclick = async () => { const j = await novoJogo(); ctx.go('#/jogo/' + j.id); };
+  main.querySelector('#ttLer').onclick = () => tempos(main, ctx);
   draw();
+}
+
+// Pré-visualização da tabela colada: quem é quem no plantel e a que jogo vai cada coluna
+async function tempos(main, ctx) {
+  const box = main.querySelector('#ttPrev');
+  const {linhas, colunas, avisos} = lerTabela(main.querySelector('#ttTxt').value);
+  if (!linhas.length) { box.innerHTML = '<p class="small" style="color:var(--crit)">Não encontrei linhas com nome e tempos.</p>'; return; }
+  const ats = (await db.all('atletas')).filter(a => !a.deleted).sort((a, b) => (parseInt(a.num) || 999) - (parseInt(b.num) || 999) || (a.nome || '').localeCompare(b.nome || ''));
+  const jogos = (await db.all('jogos')).filter(j => !j.deleted).sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+  const pick = linhas.map(l => casar(l.nome, ats));
+  const optAt = sel => `<option value="">➕ Criar atleta novo</option>` + ats.map(a => `<option value="${a.id}"${a.id === sel ? ' selected' : ''}>${esc(a.num || '–')} ${esc(a.nome || '')}</option>`).join('');
+  const optJg = `<option value="">➕ Jogo novo</option>` + jogos.map(j => `<option value="${j.id}">${esc(j.data || 'sem data')} · ${esc(j.adversario || 'sem adversário')}${j.competicao ? ' · ' + esc(j.competicao) : ''}</option>`).join('');
+  const total = c => linhas.reduce((s, l) => s + (l.tempos[c] || 0), 0);
+  box.innerHTML = `
+    ${avisos.length ? `<p class="small muted">${avisos.map(esc).join('<br>')}</p>` : ''}
+    <div class="tw"><table><thead><tr><th>Colado</th><th>Atleta na app</th>${Array.from({length: colunas}, (_, c) => `<th>Jogo ${c + 1}</th>`).join('')}</tr></thead><tbody>
+      ${linhas.map((l, i) => `<tr><td>${esc(l.nome)}${l.pos ? ` <span class="small muted">${esc(l.pos)}</span>` : ''}</td>
+        <td><select data-tat="${i}" style="min-height:34px;padding:4px">${optAt(pick[i])}</select></td>
+        ${l.tempos.map(t => `<td>${t ? mmss(t) : '–'}</td>`).join('')}</tr>`).join('')}
+      <tr><td><b>Total</b></td><td class="small muted">5 em campo × 40 min = 200 min</td>${Array.from({length: colunas}, (_, c) => `<td><b>${Math.round(total(c) / 60)}'</b></td>`).join('')}</tr>
+    </tbody></table></div>
+    ${Array.from({length: colunas}, (_, c) => `<fieldset class="panel" style="margin:0"><legend><b>Jogo ${c + 1}</b></legend>
+      <label class="f"><span>Guardar em</span><select data-tj="${c}">${optJg}</select></label>
+      <div class="fields" data-tnovo="${c}">
+        <label class="f"><span>Adversário</span><input data-tadv="${c}" maxlength="40"></label>
+        <label class="f"><span>Competição</span><input data-tcomp="${c}" maxlength="40"></label>
+        <label class="f"><span>Data</span><input type="date" data-tdata="${c}"></label>
+        <label class="f"><span>Jogamos</span><select data-tcasa="${c}"><option value="1">Em casa</option><option value="0">Fora</option></select></label>
+      </div></fieldset>`).join('')}
+    <p class="small muted">Os atletas com tempo entram na convocatória do jogo. Se o jogo já tinha tempos à mão, são substituídos por estes. Jogos com Ao vivo marcado continuam a usar os tempos do Ao vivo.</p>
+    <div class="row"><button class="primary" id="ttOk">Guardar tempos</button></div>
+    <p class="small" id="ttMsg" aria-live="polite"></p>`;
+  box.querySelectorAll('[data-tj]').forEach(s => s.onchange = () => { box.querySelector(`[data-tnovo="${s.dataset.tj}"]`).hidden = !!s.value; });
+  box.querySelector('#ttOk').onclick = async () => {
+    const msg = box.querySelector('#ttMsg');
+    for (let c = 0; c < colunas; c++) if (!box.querySelector(`[data-tj="${c}"]`).value && !box.querySelector(`[data-tadv="${c}"]`).value.trim()) { msg.textContent = `Jogo ${c + 1}: escolhe um jogo ou escreve o adversário.`; msg.style.color = 'var(--crit)'; return; }
+    for (let c = 0; c < colunas; c++) if (!box.querySelector(`[data-tj="${c}"]`).value && !box.querySelector(`[data-tdata="${c}"]`).value) { msg.textContent = `Jogo ${c + 1}: falta a data.`; msg.style.color = 'var(--crit)'; return; }
+    const ids = [];
+    let novos = 0;
+    for (let i = 0; i < linhas.length; i++) {
+      let id = box.querySelector(`[data-tat="${i}"]`).value;
+      if (!id) {
+        if (!linhas[i].tempos.some(t => t > 0)) { ids.push(null); continue; }   // não jogou e não existe: não cria
+        const a = await db.put('atletas', {num: '', nome: linhas[i].nome, posicao: linhas[i].pos, ativo: true}); id = a.id; novos++;
+      }
+      ids.push(id);
+    }
+    const out = [];
+    for (let c = 0; c < colunas; c++) {
+      const jid = box.querySelector(`[data-tj="${c}"]`).value;
+      let j = jid ? await db.get('jogos', jid) : {...await novoJogo(box.querySelector(`[data-tdata="${c}"]`).value),
+        adversario: box.querySelector(`[data-tadv="${c}"]`).value.trim(), competicao: box.querySelector(`[data-tcomp="${c}"]`).value.trim(),
+        casa: box.querySelector(`[data-tcasa="${c}"]`).value === '1', hora: ''};
+      const minutos = {};
+      linhas.forEach((l, i) => { if (ids[i] && l.tempos[c] > 0) minutos[ids[i]] = (minutos[ids[i]] || 0) + l.tempos[c]; });
+      j = await db.put('jogos', {...j, minutos, convocados: [...new Set([...(j.convocados || []), ...Object.keys(minutos)])]});
+      out.push(`${j.data || ''} ${j.adversario || ''}: ${Object.keys(minutos).length} atletas`);
+    }
+    toast('Tempos guardados');
+    msg.style.color = ''; msg.innerHTML = `✓ ${out.map(esc).join('<br>✓ ')}${novos ? `<br>${novos} atletas novos no plantel (sem número: põe-no em Plantel).` : ''}`;
+  };
 }

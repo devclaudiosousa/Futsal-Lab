@@ -2,6 +2,7 @@
 //
 // Fontes por jogo:
 //  - minutos e quem está em campo: jogo ao vivo no banco (tempo útil); sem ele, substituições do marcador;
+//    sem nenhum dos dois, os tempos escritos à mão (j.minutos = {idAtleta: segundos}, sem quem estava em campo);
 //  - ações por jogador (golos, assistências, faltas, cartões…): marcador de vídeo; sem vídeo, o modo ao vivo antigo;
 //  - golos: do vídeo se tiver golos; senão do banco (com autor e assistência, se marcados).
 //
@@ -55,6 +56,9 @@ export function analisarJogo(j, {atById, atByNum}) {
     minSrc = acoes.src + ' (substituições)';
     for (const s of segments(ev)) for (const c of s.court) if (c) g(c.n, c.nome).seg += s.e - s.s;
     segEvents = ev;
+  } else if (j.minutos && Object.keys(j.minutos).length) {
+    minSrc = 'Tempos à mão';
+    for (const [id, s] of Object.entries(j.minutos)) if (s > 0 && atById[id]) g(atById[id].num, atById[id].nome, id).seg += s;
   }
 
   // ações por jogador

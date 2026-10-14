@@ -3,6 +3,7 @@ import {esc, toast, copy, longDate, weekday} from '../ui.js';
 import {atletas, marcadorSet, resultado, placar, desfecho, jogoTitulo, config, FONTES} from '../data.js';
 import {playerStats, quartets, goalsAgainst, mmss, minLabel} from '../stats.js';
 import {field} from './common.js';
+import {lerTempo} from '../importar-tempos.js';
 
 let srcPref = null;
 
@@ -38,6 +39,9 @@ export async function render(main, [id], ctx) {
     const conv = new Set(j.convocados || []);
     const convList = ats.filter(a => conv.has(a.id));
     const ativos = ats.filter(a => a.ativo !== false || conv.has(a.id));
+    // sem Ao vivo nem substituições no vídeo, os tempos podem ser escritos à mão
+    const manual = !j.aovivo?.events?.some(e => e.type === 'kickoff') && !temLinhas;
+    const manList = manual ? ats.filter(a => conv.has(a.id) || j.minutos?.[a.id]) : [];
     const bestQ = qs.filter(q => q.seg >= 120).reduce((b, q) => !b || (q.gm - q.gs) > (b.gm - b.gs) || ((q.gm - q.gs) === (b.gm - b.gs) && q.rm - q.rs > b.rm - b.rs) ? q : b, null);
 
     main.innerHTML = `
@@ -70,9 +74,15 @@ export async function render(main, [id], ctx) {
 
       ${convList.length ? `<section class="panel"><h2>Notas do jogo (1–10)</h2>
         <div class="tw"><table><thead><tr><th>Atleta</th><th>Tempo</th><th>Golos</th><th>Nota</th></tr></thead><tbody>
-        ${convList.map(a => { const p = psByNum[a.num]; return `<tr><td><b>${esc(a.num)}</b> ${esc(a.nome || '')}</td><td>${p?.seg ? minLabel(p.seg) : '–'}</td><td>${p?.gol || 0}</td>
+        ${convList.map(a => { const p = psByNum[a.num], seg = p?.seg || (manual ? j.minutos?.[a.id] : 0); return `<tr><td><b>${esc(a.num)}</b> ${esc(a.nome || '')}</td><td>${seg ? minLabel(seg) : '–'}</td><td>${p?.gol || 0}</td>
           <td><select id="nota-${a.id}" data-nota="${a.id}" aria-label="Nota de ${esc(a.nome || a.num)}" style="width:76px;min-height:34px;padding:4px"><option value="">–</option>${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<option${+(j.notas || {})[a.id] === n ? ' selected' : ''}>${n}</option>`).join('')}</select></td></tr>`; }).join('')}
         </tbody></table></div></section>` : ''}
+
+      ${manList.length ? `<details class="panel" id="manDet"><summary><h2 style="display:inline">Tempos de jogo à mão</h2> <span class="small muted">${Object.keys(j.minutos || {}).length ? Math.round(Object.values(j.minutos).reduce((a, b) => a + b, 0) / 60) + "' no total" : 'por preencher'}</span></summary>
+        <p class="small muted">Para jogos sem Ao vivo. Escreve 15:38 ou só os minutos (28). Entram no Excel da época.</p>
+        <div class="tw"><table><thead><tr><th>Atleta</th><th>Tempo</th></tr></thead><tbody>
+        ${manList.map(a => `<tr><td><b>${esc(a.num || '–')}</b> ${esc(a.nome || '')}</td><td><input data-min="${a.id}" value="${j.minutos?.[a.id] ? mmss(j.minutos[a.id]) : ''}" inputmode="numeric" placeholder="0:00" style="width:90px;min-height:34px;padding:4px" aria-label="Tempo de ${esc(a.nome || a.num)}"></td></tr>`).join('')}
+        </tbody></table></div><p class="small" id="manMsg" aria-live="polite"></p></details>` : ''}
 
       ${events.length ? `<section class="stack" style="gap:12px">
         <div class="row between"><h2>Estatística</h2>
@@ -104,6 +114,13 @@ export async function render(main, [id], ctx) {
     });
     main.querySelector('#casa').onchange = async e => { j.casa = e.target.value === '1'; await save(); draw(); };
     main.querySelectorAll('[data-nota]').forEach(s => s.onchange = async e => { j.notas = {...j.notas, [e.target.dataset.nota]: e.target.value ? +e.target.value : undefined}; if (!e.target.value) delete j.notas[e.target.dataset.nota]; await save(); });
+    main.querySelectorAll('[data-min]').forEach(inp => inp.onchange = async e => {
+      const v = lerTempo(e.target.value), m = main.querySelector('#manMsg');
+      if (v == null) { m.textContent = 'Tempo inválido: usa 15:38 ou 28.'; m.style.color = 'var(--crit)'; return; }
+      const mins = {...(j.minutos || {})};
+      if (v > 0) mins[e.target.dataset.min] = v; else delete mins[e.target.dataset.min];
+      j.minutos = mins; await save(); draw(); main.querySelector('#manDet').open = true;
+    });
     main.querySelectorAll('[data-src]').forEach(b => b.onclick = () => { srcPref = b.dataset.src; draw(); });
     const cc = main.querySelector('#copyConv'); if (cc) cc.onclick = async () => { const ok = await copy(convText()); toast(ok ? 'Convocatória copiada' : 'Não deu para copiar neste browser'); };
     const ac = main.querySelector('#allConv'); if (ac) ac.onclick = async () => { j.convocados = ats.filter(a => a.ativo !== false).map(a => a.id); await save(); draw(); };

@@ -1,0 +1,22 @@
+{
+  "name": "Futsal Lab",
+  "short_name": "Futsal Lab",
+  "description": "Jogo ao vivo, análise de vídeo, treinos, plantel e estatística da equipa.",
+  "lang": "pt-PT",
+  "start_url": "./index.html#/hoje",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#EDF0EE",
+  "theme_color": "#0F7159",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    {"src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml"}
+  ],
+  "shortcuts": [
+    {"name": "Época", "url": "./index.html#/epoca"},
+    {"name": "Caderno", "url": "./index.html#/caderno"}
+  ]
+}

@@ -1,0 +1,278 @@
+<!doctype html><html lang="pt-PT"><head><meta charset=utf8><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#0F7159"><link rel="icon" href="icons/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="icons/icon-192.png"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="stylesheet" href="css/marcador.css"></head><body>
+<title>Vídeo · Futsal Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+
+
+<div class="wrap">
+  <header class="top">
+    <h1><a href="index.html#/epoca" id="backApp" class="backapp" aria-label="Voltar ao Futsal Lab">←</a> Vídeo <span>· análise</span></h1>
+    <p class="sub" id="jogoSub" hidden></p>
+    <p class="sub" id="subTxt">Marca remates, golos, lances e passes por jogador, com teclado ou botões. Funciona com o vídeo do jogo ou ao vivo no banco.</p>
+  </header>
+
+  <div class="layout">
+    <div class="maincol">
+    <section class="panel" aria-label="Vídeo e marcação">
+      <div class="stage" id="stage">
+        <video id="vid" playsinline preload="metadata" hidden></video>
+        <div id="yt" class="ytbox" hidden></div>
+        <div class="drop" id="drop">
+          <strong>Cola o link do YouTube ou escolhe o ficheiro do jogo</strong>
+          <p>O ficheiro fica no teu aparelho, não é enviado para lado nenhum. Também podes arrastá-lo para aqui.</p>
+          <div class="saved" id="savedList" hidden></div>
+          <div class="row ytrow">
+            <input id="ytIn" type="url" inputmode="url" placeholder="Link do YouTube" aria-label="Link do YouTube">
+            <button class="primary" id="ytGo">Abrir YouTube</button>
+          </div>
+          <p class="ytmsg" id="ytMsg" hidden></p>
+          <div class="row">
+            <label class="btn primary" for="file">Escolher ficheiro de vídeo<input type="file" id="file" accept="video/*"></label>
+            <button class="ghost" id="goLive">Marcar ao vivo, sem vídeo</button>
+          </div>
+        </div>
+        <div class="livebox" id="liveBox" hidden>
+          <div class="lbl" id="liveLbl">1.ª parte</div>
+          <div class="big" id="liveClock">00:00</div>
+          <div class="row">
+            <button class="primary" id="start1">Iniciar 1.ª parte</button>
+            <button class="primary" id="start2">Iniciar 2.ª parte</button>
+            <button id="liveEnd">Terminar parte</button>
+          </div>
+          <p class="small" id="liveInfo">Carrega em "Iniciar" no apito inicial. O tempo conta desde aí, sem parar.</p>
+          <div class="row">
+            <button id="liveNew">Novo jogo</button>
+            <button id="liveExit">Sair do modo ao vivo</button>
+          </div>
+          <div class="row" id="liveNewConfirm" hidden><span class="small">Apagar os eventos deste jogo ao vivo?</span><button id="liveNewYes">Apagar</button><button id="liveNewNo">Cancelar</button></div>
+        </div>
+        <div class="whobox" id="whoBox" hidden>
+          <div class="q" id="whoQ">Falta · de quem?</div>
+          <div class="row" id="whoCourt"></div>
+          <div class="row" id="whoBench"></div>
+          <div class="row"><button id="whoNone">Sem jogador (Esc)</button></div>
+        </div>
+        <div class="descbox" id="descBox" hidden>
+          <input id="descIn" list="descList" placeholder="Descrição do lance (Enter guarda, Esc cancela)" autocomplete="off" aria-label="Descrição do lance">
+          <datalist id="descList"></datalist>
+          <button id="descOk" class="primary">Guardar</button>
+        </div>
+        <div class="flash" id="flash" style="opacity:0"><span class="dot" id="flashDot"></span><span id="flashTxt"></span></div>
+      </div>
+
+      <div class="transport" id="transport">
+        <button class="icon" id="play" aria-label="Reproduzir ou pausar" title="Toque: play/pausa · Segurar: acelera">▶</button>
+        <button id="back" title="Recuar 3 s (←)">−3 s</button>
+        <button id="fwd" title="Avançar 3 s (→)">+3 s</button>
+        <span class="clock" id="clock">00:00.0 <small>/ 00:00</small></span>
+        <div class="grow"><input type="range" id="seek" min="0" max="1000" value="0" step="1" aria-label="Posição no vídeo"></div>
+        <select id="speed" aria-label="Velocidade normal" title="Velocidade normal (- e +)">
+          <option value="0.5">0,5×</option><option value="0.75">0,75×</option><option value="1" selected>1×</option><option value="1.5">1,5×</option><option value="2">2×</option>
+        </select>
+        <select id="holdSpeed" aria-label="Velocidade ao segurar Espaço" title="Velocidade enquanto seguras Espaço ou o botão ▶">
+          <option value="1.5">Segurar 1,5×</option><option value="2" selected>Segurar 2×</option><option value="3">Segurar 3×</option><option value="4">Segurar 4×</option>
+        </select>
+        <button class="parte" id="parte" title="Mudar de parte (H)">1.ª parte</button>
+        <button id="vIni" title="Regista o apito de início desta parte e quem está em campo">Início da parte</button>
+        <button id="vFim" title="Regista o fim desta parte">Fim da parte</button>
+      </div>
+
+      <div class="qlance" id="qLance" aria-label="Lances (atalho)">
+        <select id="qView" aria-label="O que mostrar" style="justify-self:start;min-height:30px;padding:4px 8px">
+          <option value="tudo">Mostrar: tudo</option><option value="lances">Mostrar: só lances</option><option value="lev">Mostrar: lances + eventos</option><option value="sempasses">Mostrar: sem passes</option>
+        </select>
+        <div class="qrow"><button id="qIni" class="qini">Início</button><button id="qFim" class="qfim">Fim + descrição</button><button id="qUndo" aria-label="Desfazer" title="Desfazer">↶</button></div>
+        <div class="qchips" id="qChips"></div>
+        <button id="qSub" class="qsub">Substituição · quem está em campo</button>
+      </div>
+      <div class="timeline" id="timeline" aria-label="Linha temporal de eventos">
+        <div class="axis"></div>
+        <div id="ticks"></div>
+        <div class="head" id="head" style="left:0"></div>
+      </div>
+      <div class="tl-legend">
+        <span><i class="sw" style="background:var(--team-a)"></i><span id="lgA">Nós</span> (em cima)</span>
+        <span><i class="sw" style="background:var(--team-b)"></i><span id="lgB">Adversário</span> (em baixo)</span>
+        <span><i class="sw" style="background:var(--accent)"></i>Lances (ao centro)</span>
+        <span>Os passes não aparecem aqui</span>
+      </div>
+
+    </section>
+
+
+  <section class="panel" aria-label="Do Ao vivo" id="avPanel" hidden>
+    <h2>Do Ao vivo · o que marcaste no banco, neste vídeo</h2>
+    <p class="note" id="avNote"></p>
+    <div id="avPartes" class="avpartes"></div>
+    <div id="avList" class="avlist"></div>
+    <div class="row"><button class="primary" id="avTrazer">Trazer para o Vídeo</button></div>
+  </section>
+
+  <section class="panel" aria-label="Eventos">
+      <div class="logbar">
+        <h2>Eventos <span id="count"></span></h2>
+        <div class="filters">
+          <select id="fTeam" aria-label="Filtrar equipa"><option value="">Ambas as equipas</option><option value="A">Nós</option><option value="B">Adversário</option></select>
+          <select id="fType" aria-label="Filtrar evento">
+            <option value="">Tudo menos passes certos</option><option value="_all">Tudo</option><option value="_shots">Só remates</option>
+            <option value="passe">Passes certos</option><option value="passe_falhado">Passes falhados</option><option value="lance">Lances (início–fim)</option>
+          </select>
+        </div>
+      </div>
+      <div class="banner" id="sampleBanner">Dados de exemplo. Carrega um vídeo ou começa ao vivo e estes eventos desaparecem.</div>
+      <div class="log"><table><tbody id="log"></tbody></table></div>
+  </section>
+
+  <div class="bottom">
+      <section class="panel" aria-label="Estatísticas">
+        <div class="teams">
+          <label>Equipa A<input id="teamA" value="Nós" maxlength="24"></label>
+          <label>Equipa B<input id="teamB" value="Adversário" maxlength="24"></label>
+        </div>
+        <table class="stats">
+          <thead><tr><th></th><th class="ca" id="thA">Nós</th><th class="cb" id="thB">Adv.</th></tr></thead>
+          <tbody id="stats"></tbody>
+        </table>
+        <p class="note">A partir da 6.ª falta acumulada numa parte, cada falta dá livre direto de 10 m sem barreira.</p>
+      </section>
+
+      <div class="stack">
+      <section class="panel" aria-label="Exportar">
+        <h2>Exportar e importar</h2>
+        <div class="export">
+          <button class="primary" id="exp">Guardar CSV</button>
+          <button id="copyXL" title="Início | Fim | Descrição em m,ss, com o título na 1.ª linha">Copiar lances p/ Excel</button>
+          <button id="expPJ" title="Uma linha por jogador, com as percentagens">Resumo por jogador</button>
+          <button id="copy">Copiar CSV</button>
+          <label class="btn" for="imp">Abrir CSV<input type="file" id="imp" accept=".csv,text/csv,text/plain"></label>
+          <button id="clear">Limpar</button>
+        </div>
+        <div id="confirmClear" hidden class="banner">Apagar todos os eventos? <button id="clearYes">Apagar</button> <button id="clearNo">Cancelar</button></div>
+        <p class="note" id="expMsg">As marcações ficam guardadas neste aparelho, por vídeo (ou no jogo ao vivo).</p>
+        <textarea id="csvOut" hidden readonly aria-label="Texto exportado"></textarea>
+      </section>
+      <section class="panel" aria-label="Atalhos">
+        <h2>Teclas</h2>
+        <p class="note"><kbd>tecla</kbd> marca para a equipa A · <kbd>Shift</kbd>+<kbd>tecla</kbd> para a equipa B. Na nossa equipa, <kbd>L</kbd> <kbd>Y</kbd> <kbd>V</kbd> perguntam de quem: <kbd>1</kbd>–<kbd>5</kbd> ou toca no nome.</p>
+        <div class="keys" id="keys"></div>
+        <div class="keys">
+          <div class="key nav"><kbd>Espaço</kbd>Toque: play/pausa · Segurar: acelera</div>
+          <div class="key nav"><kbd>← →</kbd>±3 s (Shift ±10 s)</div>
+          <div class="key nav"><kbd>, .</kbd>Frame a frame</div>
+          <div class="key nav"><kbd>- +</kbd>Velocidade</div>
+          <div class="key nav"><kbd>H</kbd>Mudar de parte</div>
+          <div class="key nav"><kbd>Z</kbd>Apagar o último</div>
+        </div>
+        <h3 class="keys-sub">Zonas</h3>
+        <div class="keys">
+          <div class="key nav"><kbd>Q</kbd>D10M · MD</div>
+          <div class="key nav"><kbd>W</kbd>F10M · MO</div>
+        </div>
+        <p class="note">Depois de um remate, falta, perda ou recuperação. Nos botões: toca na zona por baixo do evento.</p>
+        <h3 class="keys-sub">Passes</h3>
+        <div class="keys">
+          <div class="key nav"><kbd>1–5</kbd>Quem recebe a bola</div>
+          <div class="key nav"><kbd>T</kbd>Próximo passe: rutura</div>
+          <div class="key nav"><kbd>0</kbd>Passe falhado</div>
+          <div class="key nav"><kbd>⌫</kbd>Bola parada</div>
+        </div>
+        <h3 class="keys-sub">Lances</h3>
+        <div class="keys">
+          <div class="key nav"><kbd>A</kbd>Início (outra vez corrige)</div>
+          <div class="key nav"><kbd>S</kbd>Fim + descrição</div>
+        </div>
+        <p class="note">Fim rápido com descrição: <kbd>Shift</kbd>+número</p>
+        <div class="rapidas" id="rapidas"></div>
+      </section>
+      </div>
+  </div>
+
+  <section class="panel" aria-label="Quartetos">
+    <h2>Quartetos · tempo e golos com cada quatro em campo</h2>
+    <div class="scroll" id="qt"></div>
+    <p class="note" id="qtNote"></p>
+  </section>
+
+  <section class="panel" aria-label="Por jogador">
+    <h2>Por jogador · <span id="pjTeam">Nós</span></h2>
+    <div class="pj">
+      <div class="scroll"><table class="ptab"><thead><tr id="ptabHead"></tr></thead><tbody id="ptab"></tbody></table></div>
+      <div>
+        <h3 class="sub3">Quem passa para quem</h3>
+        <div class="scroll" id="mx"></div>
+        <p class="note" id="mxTop" style="margin-top:8px"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Como usar">
+    <h2>Do jogo aos clips</h2>
+    <div class="workflow">
+      <div><b>1 · Vídeo ou ao vivo</b><code>python futsal_clips.py download "URL" -o jogo.mp4</code><p>Ou marca ao vivo no banco com o tablet: o tempo conta desde o apito de cada parte.</p></div>
+      <div><b>2 · Marcar</b><p>Passes: toca em quem recebe; o passe certo regista-se sozinho. Perda de bola por passe: "Passe falhado". Bola fora ou falta: "Bola parada", para não inventar um passe.</p></div>
+      <div><b>3 · Cortar</b><code>python futsal_clips.py clips jogo.mp4 eventos.csv --jogador 10</code><p>Se marcaste ao vivo, junta <code style="display:inline;padding:0 4px">--inicio1 2,15 --inicio2 31,40</code> com o minuto do vídeo em que começou cada parte.</p></div>
+    </div>
+  </section>
+    </div>
+
+    <aside class="side" aria-label="Marcação">
+      <section class="panel" aria-label="Botões de marcação">
+      <div class="padhead">
+        <div class="grp">
+          <h2>Marcação</h2>
+        </div>
+        <div class="grp">
+          <select id="padView" aria-label="O que mostrar">
+            <option value="tudo">Tudo</option><option value="lances">Só lances</option><option value="lev">Lances + eventos</option><option value="sempasses">Sem passes</option>
+          </select>
+          <button id="undoBtn">Desfazer</button>
+        </div>
+      </div>
+
+      <div class="pad" id="pad">
+        <div class="pad-row" data-sec="passes">
+          <span class="lab">Passes · toca em quem recebe a bola</span>
+          <div class="holder" id="holderTxt"></div>
+          <div class="pad-row" id="padPlayers" style="flex:1 1 100%"></div>
+        </div>
+        <div class="pad-row" data-sec="passes">
+          <button class="bad wide" id="pFail">Passe falhado</button>
+          <button class="wide" id="pRut" aria-pressed="false">Próximo passe: rutura (T)</button>
+          <button class="wide" id="pStop">Bola parada</button>
+        </div>
+        <div class="pad-row" data-sec="eventos">
+          <span class="lab">Eventos · o jogador com bola fica associado</span>
+          <div class="seg" role="group" aria-label="Equipa">
+            <button data-team="A" aria-pressed="true" id="tA">Nós</button><button data-team="B" aria-pressed="false" id="tB">Adv.</button>
+          </div>
+          <div class="pad-row" id="padEvents" style="flex:1 1 300px"></div>
+        </div>
+        <div class="pad-row" data-sec="lances">
+          <span class="lab">Lances com início e fim</span>
+          <button class="wide" id="pIni">Início do lance</button>
+          <button class="wide" id="pFim">Fim + descrição</button>
+          <div class="pad-row" id="padChips" style="flex:1 1 100%"></div>
+        </div>
+      </div>
+
+      </section>
+
+      <section class="panel" aria-label="Plantel">
+        <h2>Plantel</h2>
+        <p class="note">Em campo: botões de passe e teclas 1–5. Numa substituição, troca aqui.</p>
+        <div class="court" id="court"></div>
+        <details id="rosterDet">
+          <summary>Editar plantel (<span id="rosterN">0</span> jogadores)</summary>
+          <div class="roster" id="roster"></div>
+          <div style="margin-top:8px"><button id="addP">Adicionar jogador</button></div>
+        </details>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script type="module" src="js/marcador/main.js"></script>
+
+</body></html>

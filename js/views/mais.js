@@ -8,6 +8,8 @@ import {importarMarcadorAntigo, marcadorAntigoDisponivel} from '../importar.js';
 import {field} from './common.js';
 import {renderTaxonomia} from './taxonomia-editor.js';
 
+const tema = () => { try { return localStorage.getItem('tema') || 'auto'; } catch (e) { return 'auto'; } };
+
 export async function render(main, params, ctx) {
   ctx.title('Mais');
   const [cfg, sc] = await Promise.all([config(), syncCfg()]);
@@ -22,6 +24,11 @@ export async function render(main, params, ctx) {
       ${field('clube', 'Nome da equipa', cfg.clube, 'maxlength="30" placeholder="ADRC Casa da Ribeira"')}
       ${field('epoca', 'Época', cfg.epoca, 'maxlength="12" placeholder="2026/27"')}
     </div></section>
+
+    <section class="panel"><h2>Aspeto</h2>
+      <div class="seg" role="group" aria-label="Tema">${[['auto', 'Automático'], ['light', 'Dia'], ['dark', 'Noite']].map(([v, l]) => `<button data-tema="${v}" aria-pressed="${tema() === v}">${l}</button>`).join('')}</div>
+      <p class="small muted">Dia: fundo branco. Noite: fundo preto. Automático segue o modo claro/escuro do aparelho. Fica guardado só neste aparelho.</p>
+    </section>
 
     <section class="panel"><h2>Sincronização</h2>
       <p class="muted">Tudo fica guardado neste aparelho e funciona sem rede. A sincronização passa as alterações para os outros aparelhos quando há ligação.</p>
@@ -61,6 +68,12 @@ export async function render(main, params, ctx) {
     </section>`;
   caches?.keys?.().then(k => { const v = k.filter(x => x.startsWith('futsal-lab-')).sort().pop(); const el = main.querySelector('#appVer'); if (el && v) el.textContent = v.replace('futsal-lab-', ''); }).catch(() => {});
 
+  main.querySelectorAll('[data-tema]').forEach(b => b.onclick = () => {
+    const v = b.dataset.tema;
+    try { if (v === 'auto') localStorage.removeItem('tema'); else localStorage.setItem('tema', v); } catch (e) {}
+    if (v === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = v;
+    main.querySelectorAll('[data-tema]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  });
   const saveCfg = async () => { await setConfig({clube: main.querySelector('#clube').value.trim() || 'Nós', epoca: main.querySelector('#epoca').value.trim()}); };
   ['clube', 'epoca'].forEach(k => main.querySelector('#' + k).onchange = saveCfg);
 

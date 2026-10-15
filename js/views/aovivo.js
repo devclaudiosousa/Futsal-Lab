@@ -91,7 +91,7 @@ export async function render(main, [id], ctx) {
   function card(p, d) {
     const t = p.active ? p.stintPlay : p.stintRest;
     return `<button class="pc${p.active ? ' on' : ''}${sel === p.id ? ' sel' : ''}" data-p="${p.id}">
-      <span class="no">${esc(p.num)}</span><span class="nm" title="${esc(p.nome || '')}">${esc(apelido(p.nome))}</span>
+      <span class="no">${esc(p.num)}</span><span class="nm" title="${esc(p.nome || '')}">${esc(apelido(p))}</span>
       ${p.slot ? `<span class="slot">${L.SLOT_LBL[p.slot]}</span>` : ''}
       <span class="tm mono" data-tm="${p.id}" title="${p.active ? 'Em campo desde a última troca' : 'A descansar desde a última troca'}">${L.clock(t)}</span>
       <span class="tot mono" data-tot="${p.id}" title="Tempo útil jogado no jogo">total ${L.clock(p.totalPlay)}</span>
@@ -106,7 +106,7 @@ export async function render(main, [id], ctx) {
       .filter(x => x.r).reverse();
   }
   function regHTML(d) {
-    const nome = id => { const p = d.byId[id]; return p ? `${p.num} ${apelido(p.nome)}` : ''; };
+    const nome = id => { const p = d.byId[id]; return p ? `${p.num} ${apelido(p)}` : ''; };
     const L2 = {goal: e => e.team === 'nos' ? 'Golo marcado' : 'Golo sofrido', shot: () => 'Remate', foul: () => 'Falta'};
     const items = registo(d);
     if (!items.length) return '<p class="muted small">Ainda nada marcado.</p>';
@@ -206,7 +206,7 @@ export async function render(main, [id], ctx) {
     const opts = d.players.filter(p => p.id !== by).sort((a, b) => (b.active - a.active) || (parseInt(a.num) || 99) - (parseInt(b.num) || 99));
     const titulo = {by: 'Golo · quem marcou?', ast: 'Assistência?', shot: 'Remate · quem rematou?'}[field];
     modal = `<div class="modal"><div class="box"><h3>${titulo}</h3>
-      <div class="pick">${opts.map(p => `<button data-author="${p.id}" class="${p.active ? 'on' : ''}"><b>${esc(p.num)}</b> ${esc(apelido(p.nome))}</button>`).join('')}</div>
+      <div class="pick">${opts.map(p => `<button data-author="${p.id}" class="${p.active ? 'on' : ''}"><b>${esc(p.num)}</b> ${esc(apelido(p))}</button>`).join('')}</div>
       <div class="row"><button data-author="" class="ghost">${field === 'ast' ? 'Sem assistência' : 'Saltar'}</button></div></div></div>`;
     draw();
     main.querySelectorAll('[data-author]').forEach(b => b.onclick = async () => {
@@ -223,7 +223,7 @@ export async function render(main, [id], ctx) {
       : d.players.filter(p => p.active).sort((a, b) => L.SLOTS.indexOf(a.slot) - L.SLOTS.indexOf(b.slot));
     modal = `<div class="modal"><div class="box"><h3>Falta · quem fez?</h3>
       <div class="seg zseg" role="group" aria-label="Zona"><button data-zona="MD" aria-pressed="${zona === 'MD'}">MD</button><button data-zona="MO" aria-pressed="${zona === 'MO'}">MO</button></div>
-      <div class="pick">${on.map(p => `<button data-fby="${p.id}" class="${p.active ? 'on' : ''}"><b>${esc(p.num)}</b> ${esc(apelido(p.nome))}<small class="muted">${L.SLOT_LBL[p.slot] || ''}</small></button>`).join('')}</div>
+      <div class="pick">${on.map(p => `<button data-fby="${p.id}" class="${p.active ? 'on' : ''}"><b>${esc(p.num)}</b> ${esc(apelido(p))}<small class="muted">${L.SLOT_LBL[p.slot] || ''}</small></button>`).join('')}</div>
       <div class="row"><button data-fby="" class="ghost">Sem jogador</button><button data-close class="ghost">Cancelar</button></div></div></div>`;
     draw();
     main.querySelectorAll('[data-zona]').forEach(b => b.onclick = () => askFoul(zona === b.dataset.zona ? '' : b.dataset.zona, editId));
@@ -304,14 +304,15 @@ const PN = {'1H': '1.ª parte', '2H': '2.ª parte', ET1: 'Prolongamento 1', ET2:
 const pn = l => PN[l] || l || '';
 const PC = {'1H': '1.ª', '2H': '2.ª', ET1: 'Prol. 1', ET2: 'Prol. 2'};
 const pc = l => PC[l] || l || '';
-const apelido = n => { const w = (n || '').trim().split(/\s+/); return w.length > 1 ? w.at(-1) : w[0] || ''; };
+// nome curto: o da ficha do atleta, ou o último nome
+const apelido = p => { if (p?.curto) return p.curto; const w = (p?.nome || '').trim().split(/\s+/); return w.length > 1 ? w.at(-1) : w[0] || ''; };
 const short = s => (s || '').length > 12 ? s.slice(0, 11) + '…' : s;
 
 // Plantel do jogo: convocados (ou todos os ativos). Presets herdados do último jogo ao vivo.
 async function novoLive(j) {
   const ats = (await db.all('atletas')).filter(a => (j.convocados || []).length ? j.convocados.includes(a.id) : a.ativo !== false)
     .sort((a, b) => (parseInt(a.num) || 999) - (parseInt(b.num) || 999));
-  const plantel = ats.map(a => ({id: a.id, num: String(a.num || ''), nome: a.nome || '', pos: a.posicao || ''}));
+  const plantel = ats.map(a => ({id: a.id, num: String(a.num || ''), nome: a.nome || '', pos: a.posicao || '', ...(a.curto ? {curto: a.curto} : {})}));
   const live = L.newLive({plantel});
   const prev = (await db.all('jogos')).filter(x => x.aovivo?.presets && x.id !== j.id).sort((a, b) => (b.data || '').localeCompare(a.data || ''))[0];
   if (prev) {

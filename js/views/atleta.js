@@ -36,7 +36,7 @@ export async function render(main, [id], ctx) {
       ${porJogo.length ? `<section class="stack"><h2>Jogos</h2><div class="list">${porJogo.map(({j, p, nota}) => `<a class="item" href="#/jogo/${j.id}">${dayBox(j.data, true)}<div class="main"><b>${esc(jogoTitulo(j, cfg.clube))}</b>
         <span>${p ? `${p.seg ? mmss(p.seg) + ' em campo · ' : ''}${p.gol} golos · ${p.rem} remates` : 'Sem marcações deste atleta'}</span></div>${nota ? `<span class="pill acc">nota ${nota}</span>` : ''}</a>`).join('')}</div></section>` : ''}
       <section class="panel"><h2>Ficha</h2><div class="fields">
-        ${field('num', 'Número', a.num, 'inputmode="numeric" maxlength="3"')}${field('nome', 'Nome', a.nome, 'maxlength="30"')}
+        ${field('num', 'Número', a.num, 'inputmode="numeric" maxlength="3"')}${field('nome', 'Nome', a.nome, 'maxlength="30"')}${field('curto', 'Nome curto (Ao vivo, quartetos)', a.curto, 'maxlength="16" placeholder="último nome"')}
         <label class="f"><span>Posição</span><select id="posicao"><option value="">—</option>${POSICOES.map(p => `<option${a.posicao === p ? ' selected' : ''}>${p}</option>`).join('')}</select></label>
         ${field('nascimento', 'Data de nascimento', a.nascimento, 'type="date"')}
         ${field('contacto', 'Contacto (atleta ou encarregado)', a.contacto, 'maxlength="60"', true)}
@@ -47,7 +47,7 @@ export async function render(main, [id], ctx) {
       ${confirmDel ? `<div class="confirm stack" style="gap:8px">${usos ? `<span>Este atleta aparece em <b>${usos}</b> jogo${usos > 1 ? 's' : ''}. Se é repetido, passa os dados (tempos, golos, convocatórias) para a ficha certa antes de apagar:</span>
         <label class="f"><span>Passar os dados para</span><select id="delTo"><option value="">Ninguém (os dados deste atleta deixam de contar)</option>${outros.map(o => `<option value="${o.id}">${esc(o.num || '–')} ${esc(o.nome || '')}</option>`).join('')}</select></label>` : '<span>Apagar a ficha?</span>'}
         <div class="row"><button id="delY" class="primary" style="background:var(--crit);border-color:var(--crit)">Apagar</button><button id="delN">Cancelar</button></div></div>` : ''}`;
-    ['num', 'nome', 'nascimento', 'contacto', 'obs'].forEach(k => main.querySelector('#' + k).oninput = e => { a[k] = e.target.value.trim(); saveLater(); });
+    ['num', 'nome', 'curto', 'nascimento', 'contacto', 'obs'].forEach(k => main.querySelector('#' + k).oninput = e => { a[k] = e.target.value.trim(); saveLater(); });
     main.querySelector('#posicao').onchange = async e => { a.posicao = e.target.value; await save(); draw(); };
     main.querySelector('#ativo').onchange = async e => { a.ativo = e.target.checked; await save(); draw(); };
     main.querySelector('#del').onclick = async () => {

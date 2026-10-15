@@ -3,8 +3,8 @@ import {agenda, novoTreino, novoJogo, resultado, config} from '../data.js';
 import {agendaItem} from './common.js';
 import {db} from '../db.js';
 import {toast, esc} from '../ui.js';
-import {buildEpoca} from '../epoca-excel.js';
-import {loadXLSX} from '../live/excel.js';
+import {livroEpoca} from '../epoca-livro.js';
+import {livroBytes} from '../xlsx-livro.js';
 import {guardarNoOneDrive, syncNow} from '../sync.js';
 import {importarControlStats} from '../importar-cs.js';
 import {lerTabela, casar} from '../importar-tempos.js';
@@ -48,7 +48,7 @@ export async function render(main, params, ctx) {
     <div id="lists" class="stack" style="gap:16px"></div>
     <h2 class="small muted" style="margin-top:8px">Excel e jogos antigos</h2>
     <details class="panel"><summary><h2 style="display:inline">Excel da época</h2></summary>
-      <p class="small muted">Feito de novo a partir de todos os jogos, por isso corrigir um jogo antigo corrige o Excel seguinte. Folhas: Jogos, Estatísticas por jogador (com valores por 40 min), Minutos, Totais por jogo e Eventos.</p>
+      <p class="small muted">Feito de novo a partir de todos os jogos, por isso corrigir um jogo antigo corrige o Excel seguinte. Folhas: Resumo, Jogadores, Jogo a jogo, Minutos, Golos, Quartetos e, no fim, Dados (uma linha por jogador e jogo, para filtrar).</p>
       <div class="fields">
         <label class="f"><span>Competição</span><select id="xc"><option value="">Todas</option>${[...new Set(jogos.map(j => j.competicao).filter(Boolean))].sort().map(c => `<option>${esc(c)}</option>`).join('')}</select></label>
         <label class="f"><span>De</span><input type="date" id="xde"></label><label class="f"><span>Até</span><input type="date" id="xate"></label>
@@ -87,15 +87,15 @@ export async function render(main, params, ctx) {
       btn.textContent = 'A sincronizar…';
       await Promise.race([syncNow().catch(() => null), new Promise(r => setTimeout(r, 15000))]);
       btn.textContent = 'A fazer o Excel…';
-      const XLSX = await loadXLSX();
-      const sheets = buildEpoca({jogos: await db.all('jogos'), atletas: await db.all('atletas'), cfg,
+      const folhas = livroEpoca({jogos: await db.all('jogos'), atletas: await db.all('atletas'), cfg,
         filtro: {competicao: main.querySelector('#xc').value, de: main.querySelector('#xde').value, ate: main.querySelector('#xate').value}});
-      const wb = XLSX.utils.book_new();
-      for (const [n, aoa] of Object.entries(sheets)) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), n);
-      const nome = `Estatisticas_${(cfg.epoca || hoje.slice(0, 4)).replace(/[\\/]/g, '-')}.xlsx`;
-      XLSX.writeFile(wb, nome);
-      const type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      const up = await guardarNoOneDrive(nome, new Blob([XLSX.write(wb, {bookType: 'xlsx', type: 'array'})], {type})).catch(() => null);
+      // nome com data e hora: nunca se confunde com um Excel antigo nas Transferências
+      const d = new Date(), p2 = n => String(n).padStart(2, '0');
+      const nome = `Estatisticas_${(cfg.epoca || hoje.slice(0, 4)).replace(/[\\/]/g, '-')}_${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}_${p2(d.getHours())}h${p2(d.getMinutes())}.xlsx`;
+      const blob = new Blob([livroBytes(folhas)], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const url = URL.createObjectURL(blob), a = Object.assign(document.createElement('a'), {href: url, download: nome});
+      document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
+      const up = await guardarNoOneDrive(nome, blob).catch(() => null);
       toast(up ? 'Excel guardado aqui e no OneDrive' : 'Excel guardado');
     } catch (err) { toast('Não deu para exportar: ' + err.message); }
     finally { btn.disabled = false; btn.textContent = 'Exportar Excel da época'; }

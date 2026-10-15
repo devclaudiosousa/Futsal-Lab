@@ -199,6 +199,11 @@ export function buildEpoca({jogos, atletas, cfg = {}, filtro = {}}) {
   for (const a of atletas) if (a.num && (a.ativo !== false || !atByNum[a.num])) atByNum[String(a.num)] = a;
   const nomeK = (k, info) => { const a = atById[k]; return a ? `${a.num} ${a.nome || ''}`.trim() : info?.[k] ? `${info[k].num} ${info[k].nome}`.trim() : (k || '').replace('#', ''); };
   const numK = (k, info) => atById[k]?.num ?? info?.[k]?.num ?? (k || '').replace('#', '');
+  // nome curto (último nome; o nome todo se houver dois iguais) para os quartetos
+  const ult = a => (a?.nome || '').trim().split(/\s+/).pop() || '';
+  const conta = {}; for (const a of atletas) if (!a.deleted) conta[ult(a)] = (conta[ult(a)] || 0) + 1;
+  const curto = a => (a ? a.curto?.trim() || (conta[ult(a)] > 1 ? a.nome.trim() : ult(a)) || String(a.num || '?') : '');
+  const curtoNum = n => (atByNum[String(n)] ? curto(atByNum[String(n)]) : String(n));
 
   const season = {};   // chave → totais + jogos
   const meta = {};
@@ -254,7 +259,8 @@ export function buildEpoca({jogos, atletas, cfg = {}, filtro = {}}) {
     for (const a of cat.golos ? an.ajustes : []) ajRows.push([j.data || '', j.adversario || '', numK(a.k, an.info), nomeK(a.k, an.info).replace(/^\S+\s/, ''), a.v > 0 ? '+1' : '−1', a.desc]);
     for (const go of cat.golos ? an.golos : []) {
       const on = go.on || [];
-      const quart = on.slice(1).filter(Boolean).map(k => numK(k, an.info)).sort((a, b) => (parseInt(a) || 999) - (parseInt(b) || 999)).join('-');
+      const quart = on.slice(1).filter(Boolean).sort((a, b) => (parseInt(numK(a, an.info)) || 999) - (parseInt(numK(b, an.info)) || 999))
+        .map(k => (atById[k] ? curto(atById[k]) : curtoNum(numK(k, an.info)))).join(' · ');
       golRows.push([j.data || '', j.adversario || '', go.parte, ms(go.t), go.nos ? 'Marcado' : 'Sofrido', go.by ? nomeK(go.by, an.info) : '', go.ast ? nomeK(go.ast, an.info) : '',
         on[0] ? nomeK(on[0], an.info) : '', quart, on.filter(Boolean).map(k => nomeK(k, an.info)).join(', '), go.fonte]);
     }
@@ -287,7 +293,7 @@ export function buildEpoca({jogos, atletas, cfg = {}, filtro = {}}) {
   const minRows = [['Nº', 'Jogador', ...colJogos, 'Total (min)']];
   for (const k of ks) minRows.push([numK(k, meta), nomeK(k, meta).replace(/^\S+\s/, ''), ...colJogos.map((_, gi) => season[k].porJogo[gi] ? min1(season[k].porJogo[gi]) : ''), min1(season[k].seg)]);
   const qRows = [['Quarteto', 'Jogos', 'Minutos', 'Golos marcados', 'Golos sofridos', 'Saldo', 'Saldo /40']];
-  for (const q of Object.values(qAgg).sort((a, b) => b.seg - a.seg)) qRows.push([q.nums.join('-'), q.jogos.size, min1(q.seg), q.gm, q.gs, q.gm - q.gs, per40(q.gm - q.gs, q.seg)]);
+  for (const q of Object.values(qAgg).sort((a, b) => b.seg - a.seg)) qRows.push([q.nums.map(curtoNum).join(' · '), q.jogos.size, q.seg ? min1(q.seg) : '', q.gm, q.gs, q.gm - q.gs, per40(q.gm - q.gs, q.seg)]);
 
   return {
     'Jogos': jogosRows, 'Estatísticas por jogador': statRows, 'Por jogador e jogo': pjRows, 'Golos': golRows, 'Quartetos': qRows,
@@ -295,7 +301,32 @@ export function buildEpoca({jogos, atletas, cfg = {}, filtro = {}}) {
     'Notas': [['Como ler'], ['+ : cada golo ou assistência vale +1. − : cada golo sofrido com o jogador em campo vale −1. +/− = + menos −.'],
       ['Os ajustes do treinador no pós-jogo (+1 ou −1 com descrição) entram no + e no −; a folha "Ajustes +-" lista cada um.'],
       ['Faltas MD/MO tal como marcadas, do nosso ponto de vista (MD = no nosso meio-campo defensivo).'], ['O GR conta como qualquer jogador: leva − nos golos sofridos em que está em campo.'], ['Minutos em tempo útil quando o jogo foi marcado no banco. Total = 1.ª + 2.ª parte + prolongamentos; nos jogos com tempos à mão só há minutos por parte se os escreveste.'],
-      ['Quarteto: os quatro jogadores de campo, sem o GR.'],
+      ['Quarteto: os quatro jogadores de campo, sem o GR (pelo último nome; o nome todo quando há dois iguais).'],
       ['Cada jogo só conta nas estatísticas que tem (ver "Não conta para a época" na folha Jogos): um jogo sem passes marcados não conta como 0 passes. Os valores /40 usam só os minutos dos jogos que têm essa estatística.']],
   };
+}
+
+// Folhas com cores para o .xlsx: golos marcados a verde, sofridos a vermelho (tons suaves), +/− pela cor do sinal
+const VERDE = new Set(['Golos', 'Assistências', '+', '+ ajuste', 'Em campo golo marcado', 'Golos marcados', 'Golos /40']);
+const VERMELHO = new Set(['−', '− ajuste', 'Em campo golo sofrido', 'Golos sofridos', 'Golos adversário']);
+const SINAL = new Set(['+/−', '+/− /40', 'Saldo', 'Saldo /40']);
+const FIXAR = {'Estatísticas por jogador': 2, 'Por jogador e jogo': 4, 'Minutos': 2, 'Golos': 3, 'Quartetos': 1, 'Ajustes +-': 4};
+export function folhasEpoca(sheets, clube = 'Nós') {
+  return Object.entries(sheets).map(([nome, linhas]) => ({
+    nome, linhas,
+    fixar: nome === 'Notas' ? {linhas: 1} : {linhas: 1, colunas: FIXAR[nome] || 0},
+    filtro: nome !== 'Notas',
+    estilo: (ri, ci, v, head, row) => {
+      const h = head[ci];
+      if (nome === 'Notas') return ri > 0 ? 'nota' : undefined;
+      if (nome === 'Golos') { const g = row[head.indexOf('Golo')]; return g === 'Marcado' ? 'bom' : g === 'Sofrido' ? 'mau' : undefined; }
+      if (nome === 'Ajustes +-' && h === '+/−') return String(v).startsWith('+') ? 'bom' : 'mau';
+      if (h === 'Resultado') return v === 'V' ? 'bom' : v === 'D' ? 'mau' : v === 'E' ? 'neutro' : undefined;
+      if (typeof v !== 'number' || !v) return undefined;
+      if (SINAL.has(h)) return v > 0 ? 'bom' : 'mau';
+      if (VERDE.has(h) || h === `Golos ${clube}`) return 'bom';
+      if (VERMELHO.has(h)) return 'mau';
+      return undefined;
+    },
+  }));
 }

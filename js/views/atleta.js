@@ -7,6 +7,7 @@ import {field} from './common.js';
 
 export async function render(main, [id], ctx) {
   let a = await db.get('atletas', id);
+  let usos = 0, outros = [];
   ctx.title('Atleta', '#/plantel');
   if (!a) { main.innerHTML = '<div class="empty">Este atleta já não existe.<a class="btn" href="#/plantel">Voltar ao plantel</a></div>'; return; }
   const [treinos, jogos, cfg] = await Promise.all([db.all('treinos'), db.all('jogos'), config()]);
@@ -43,12 +44,28 @@ export async function render(main, [id], ctx) {
         <label class="check wide"><input type="checkbox" id="ativo" ${a.ativo !== false ? 'checked' : ''}> No plantel desta época</label>
       </div><p class="small muted">O número liga o atleta às marcações do vídeo. Se o mudares a meio da época, os jogos antigos ficam com o número antigo.</p></section>
       <div class="row"><button class="danger" id="del">Apagar atleta</button></div>
-      ${confirmDel ? '<div class="confirm">Apagar a ficha? As marcações dos jogos ficam. <button id="delY" class="primary" style="background:var(--crit);border-color:var(--crit)">Apagar</button><button id="delN">Cancelar</button></div>' : ''}`;
+      ${confirmDel ? `<div class="confirm stack" style="gap:8px">${usos ? `<span>Este atleta aparece em <b>${usos}</b> jogo${usos > 1 ? 's' : ''}. Se é repetido, passa os dados (tempos, golos, convocatórias) para a ficha certa antes de apagar:</span>
+        <label class="f"><span>Passar os dados para</span><select id="delTo"><option value="">Ninguém (os dados deste atleta deixam de contar)</option>${outros.map(o => `<option value="${o.id}">${esc(o.num || '–')} ${esc(o.nome || '')}</option>`).join('')}</select></label>` : '<span>Apagar a ficha?</span>'}
+        <div class="row"><button id="delY" class="primary" style="background:var(--crit);border-color:var(--crit)">Apagar</button><button id="delN">Cancelar</button></div></div>` : ''}`;
     ['num', 'nome', 'nascimento', 'contacto', 'obs'].forEach(k => main.querySelector('#' + k).oninput = e => { a[k] = e.target.value.trim(); saveLater(); });
     main.querySelector('#posicao').onchange = async e => { a.posicao = e.target.value; await save(); draw(); };
     main.querySelector('#ativo').onchange = async e => { a.ativo = e.target.checked; await save(); draw(); };
-    main.querySelector('#del').onclick = () => { confirmDel = true; draw(); };
-    const dy = main.querySelector('#delY'); if (dy) dy.onclick = async () => { await db.del('atletas', a.id); toast('Atleta apagado'); ctx.go('#/plantel'); };
+    main.querySelector('#del').onclick = async () => {
+      usos = (await db.all('jogos')).filter(j => JSON.stringify(j).includes(a.id)).length;
+      outros = (await db.all('atletas')).filter(o => o.id !== a.id).sort((x, y) => (parseInt(x.num) || 999) - (parseInt(y.num) || 999));
+      confirmDel = true; draw();
+    };
+    const dy = main.querySelector('#delY'); if (dy) dy.onclick = async () => {
+      const to = main.querySelector('#delTo')?.value;
+      if (to) for (const j of await db.all('jogos')) {   // os ids são únicos: troca-se em todo o registo do jogo
+        const txt = JSON.stringify(j);
+        if (!txt.includes(a.id)) continue;
+        const nj = JSON.parse(txt.split(a.id).join(to));
+        if (nj.convocados) nj.convocados = [...new Set(nj.convocados)];
+        await db.put('jogos', nj);
+      }
+      await db.del('atletas', a.id); toast(to ? 'Dados passados e atleta apagado' : 'Atleta apagado'); ctx.go('#/plantel');
+    };
     const dn = main.querySelector('#delN'); if (dn) dn.onclick = () => { confirmDel = false; draw(); };
   };
   draw();

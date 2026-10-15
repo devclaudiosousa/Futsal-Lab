@@ -5,7 +5,7 @@ import {db} from '../db.js';
 import {toast, esc} from '../ui.js';
 import {buildEpoca} from '../epoca-excel.js';
 import {loadXLSX} from '../live/excel.js';
-import {guardarNoOneDrive} from '../sync.js';
+import {guardarNoOneDrive, syncNow} from '../sync.js';
 import {importarControlStats} from '../importar-cs.js';
 import {lerTabela, casar} from '../importar-tempos.js';
 import {mmss} from '../stats.js';
@@ -62,8 +62,8 @@ export async function render(main, params, ctx) {
       <p class="small" id="csMsg" aria-live="polite"></p>
     </details>
     <details class="panel" id="ttDet"><summary><h2 style="display:inline">Tempos de jogo de jogos antigos</h2></summary>
-      <p class="small muted">Cola uma tabela com uma linha por atleta: <b>nome</b>, posição (opcional) e um tempo por jogo, por exemplo <code>Pedro Nunes  Fixo  15:38  15:34</code>. "15:38" = 15 min 38 s, "28" = 28 min, "0" = não jogou. Cada coluna de tempos é um jogo.</p>
-      <label class="f"><span>Tabela</span><textarea id="ttTxt" rows="6" spellcheck="false" placeholder="Jorge Borges&#9;Redes&#9;28&#9;10"></textarea></label>
+      <p class="small muted">Cola uma tabela com uma linha por atleta: <b>nome</b>, posição (opcional) e um tempo por jogo, por exemplo <code>Hugo Pires  Fixo  15:38  15:34</code>. "15:38" = 15 min 38 s, "28" = 28 min, "0" = não jogou. Cada coluna de tempos é um jogo.</p>
+      <label class="f"><span>Tabela</span><textarea id="ttTxt" rows="6" spellcheck="false" placeholder="Rui Pacheco&#9;Redes&#9;28&#9;10"></textarea></label>
       <div class="row"><button id="ttLer">Ler tabela</button></div>
       <div id="ttPrev" class="stack"></div>
     </details>`;
@@ -83,6 +83,10 @@ export async function render(main, params, ctx) {
   main.querySelector('#xls').onclick = async e => {
     const btn = e.currentTarget; btn.disabled = true;
     try {
+      // traz primeiro o que foi marcado noutros aparelhos (no máximo 15 s; sem rede segue com o que há aqui)
+      btn.textContent = 'A sincronizar…';
+      await Promise.race([syncNow().catch(() => null), new Promise(r => setTimeout(r, 15000))]);
+      btn.textContent = 'A fazer o Excel…';
       const XLSX = await loadXLSX();
       const sheets = buildEpoca({jogos: await db.all('jogos'), atletas: await db.all('atletas'), cfg,
         filtro: {competicao: main.querySelector('#xc').value, de: main.querySelector('#xde').value, ate: main.querySelector('#xate').value}});
@@ -94,7 +98,7 @@ export async function render(main, params, ctx) {
       const up = await guardarNoOneDrive(nome, new Blob([XLSX.write(wb, {bookType: 'xlsx', type: 'array'})], {type})).catch(() => null);
       toast(up ? 'Excel guardado aqui e no OneDrive' : 'Excel guardado');
     } catch (err) { toast('Não deu para exportar: ' + err.message); }
-    finally { btn.disabled = false; }
+    finally { btn.disabled = false; btn.textContent = 'Exportar Excel da época'; }
   };
   main.querySelector('#nj').onclick = async () => { const j = await novoJogo(); ctx.go('#/jogo/' + j.id); };
   main.querySelector('#ttLer').onclick = () => tempos(main, ctx);

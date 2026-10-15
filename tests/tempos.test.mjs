@@ -1,49 +1,49 @@
 import assert from 'node:assert/strict';
 import {lerTabela, casar, lerTempo} from '../js/importar-tempos.js';
 import {buildEpoca} from '../js/epoca-excel.js';
-const TXT = `Jorge Borges	Redes	28	10
-Simão Terra	Redes	12	15
-Miguel Brasil	Redes	0	15
-Joel Bento	Fixo	0	0
-Pedro Nunes	FIxo	15:38	15:34
-Pedro Sales	Fixo	26:19	19:36
-João Marques	Ala	0	0
-Diogo Dias	Ala	13:57	0
-Tiago Lourenço	Ala	11:27	17:36
-Miguel Rocha	Ala	9:44	29:23
-Darcio Sousa	Ala	8:40	0
-Carlinhos	Ala	21:08	19:09
-Batata	Ala	15:35	24:23
-Bernardo Brasil	Ala	11:13	0
-Diogo Martins	Ala	0	0
-Simão Carina	Pivot	10:02	20:12
-Jorginho	Pivot	0	0
-Pintex	Pivot	14:07	14:07
-Rafael Emilio	Ala	0	0`;
+const TXT = `Rui Pacheco	Redes	28	10
+Tomás Leite	Redes	12	15
+Nuno Frade	Redes	0	15
+Ivo Lemos	Fixo	0	0
+Hugo Pires	FIxo	15:38	15:34
+Hugo Sá	Fixo	26:19	19:36
+José Antão	Ala	0	0
+Luís Mota	Ala	13:57	0
+Gil Câmara	Ala	11:27	17:36
+Marco Leal	Ala	9:44	29:23
+Filipe Rosa	Ala	8:40	0
+Zezinho	Ala	21:08	19:09
+Pipoca	Ala	15:35	24:23
+Duarte Brum	Ala	11:13	0
+Luís Faria	Ala	0	0
+Tomás Vaz	Pivot	10:02	20:12
+Toninho	Pivot	0	0
+Kiko	Pivot	14:07	14:07
+Paulo Medeiros	Ala	0	0`;
 const {linhas, colunas} = lerTabela(TXT);
 assert.equal(linhas.length, 19); assert.equal(colunas, 2);
-assert.deepEqual(linhas[0], {nome: 'Jorge Borges', pos: 'GR', tempos: [1680, 600]});
+assert.deepEqual(linhas[0], {nome: 'Rui Pacheco', pos: 'GR', tempos: [1680, 600]});
 assert.equal(linhas[4].pos, 'Fixo'); assert.equal(linhas[15].pos, 'Pivô');
 assert.equal(lerTempo('15:38'), 938); assert.equal(lerTempo('0'), 0); assert.equal(lerTempo('x'), null);
 const tot = c => linhas.reduce((s, l) => s + l.tempos[c], 0);
 assert.equal(tot(1), 200 * 60);
 // plantel como está na app (nomes do Control-Stats)
-const ats = ['4 Pedro Nunes', '7 Pedro Sales', '8 Miguel Rocha', '9 Pintex', '10 Carlinhos', '11 Bernardo', '12 Jorge Borges', '15 Miguel Brasil', '20 Jorginho', '27 Joao Marques', '29 Darcio Sousa', '77 Simão Carina', '87 Batata']
+const ats = ['4 Hugo Pires', '7 Hugo Sá', '8 Marco Leal', '9 Kiko', '10 Zezinho', '11 Duarte', '12 Rui Pacheco', '15 Nuno Frade', '20 Toninho', '27 Jose Antao', '29 Filipe Rosa', '77 Tomás Vaz', '87 Pipoca']
   .map(s => { const [num, ...n] = s.split(' '); return {id: 'a' + num, num, nome: n.join(' ')}; });
 const m = Object.fromEntries(linhas.map(l => [l.nome, casar(l.nome, ats)]));
-assert.equal(m['Bernardo Brasil'], 'a11'); assert.equal(m['João Marques'], 'a27'); assert.equal(m['Simão Carina'], 'a77'); assert.equal(m['Miguel Brasil'], 'a15');
-for (const n of ['Simão Terra', 'Joel Bento', 'Diogo Dias', 'Tiago Lourenço', 'Diogo Martins', 'Rafael Emilio']) assert.equal(m[n], null, n);
+assert.equal(m['Duarte Brum'], 'a11'); assert.equal(m['José Antão'], 'a27'); assert.equal(m['Tomás Vaz'], 'a77'); assert.equal(m['Nuno Frade'], 'a15');
+for (const n of ['Tomás Leite', 'Ivo Lemos', 'Luís Mota', 'Gil Câmara', 'Luís Faria', 'Paulo Medeiros']) assert.equal(m[n], null, n);
 // Excel da época com tempos à mão
 const minutos = {}; linhas.forEach(l => { if (m[l.nome] && l.tempos[0]) minutos[m[l.nome]] = l.tempos[0]; });
 const sh = buildEpoca({jogos: [{id: 'j1', data: '2026-09-20', adversario: 'Posto Santo', competicao: 'Supertaça', minutos, convocados: Object.keys(minutos)}], atletas: ats});
 const est = sh['Estatísticas por jogador'], h = est[0];
-const nunes = est.find(r => r[1] === 'Pedro Nunes');
+const nunes = est.find(r => r[1] === 'Hugo Pires');
 assert.equal(nunes[h.indexOf('Minutos')], 15.6); assert.equal(nunes[h.indexOf('Jogos com minutos')], 1);
 assert.equal(sh['Jogos'][1][7], 'Tempos à mão');
 console.log('tempos ok');
 // jogo antigo à mão: golos com os 5 em campo, cartões, faltas e ajustes do treinador
 {
-  const A = ['a12', 'a4', 'a7', 'a8', 'a9'];   // GR Borges + Nunes, Sales, Rocha, Pintex
+  const A = ['a12', 'a4', 'a7', 'a8', 'a9'];   // GR Pacheco + Pires, Sá, Leal, Kiko
   const j = {id: 'j2', data: '2026-10-11', adversario: 'Fonte Bastardo', convocados: ats.map(a => a.id), minutos: {a4: 900},
     manual: {golos: [{id: 'g1', nos: true, parte: 1, min: 5, by: 'a8', ast: 'a4', on: A}, {id: 'g2', nos: false, parte: 2, on: A}, {id: 'g3', nos: true, parte: 2, by: 'a10', on: ['a12', 'a4', 'a7', 'a10', 'a11']}],
       atletas: {a4: {am: 1, fcMO: 2}, a9: {verm: 1, fcMD: 1}}},
@@ -56,7 +56,7 @@ console.log('tempos ok');
   assert.equal(c(r('7'), '+/−'), -2); assert.equal(c(r('7'), '− ajuste'), 1);
   assert.equal(c(r('12'), 'Em campo golo sofrido'), 1); assert.equal(c(r('12'), 'Em campo golo marcado'), 2);
   assert.deepEqual(sh['Jogos'][1].slice(4, 7), [2, 1, 'V']);
-  assert.ok(sh['Quartetos'].some(q => q[0] === '4-7-8-9' && q[3] === 1 && q[4] === 1));
+  assert.ok(sh['Quartetos'].some(q => q[0] === 'Pires · Sá · Leal · Kiko' && q[3] === 1 && q[4] === 1));
   assert.equal(sh['Ajustes +-'][1][5], 'boa transição defensiva');
   assert.equal(sh['Totais por jogo'][1][9], 3);
 }

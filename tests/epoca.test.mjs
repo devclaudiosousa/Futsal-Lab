@@ -31,9 +31,9 @@ const lealJ1 = pj.find(r => r[0]==='2026-10-04' && r[2]==='5'); assert.equal(lea
 assert.equal(lealJ1[PH.indexOf('Nota')], 7);
 const pachecoJ1 = pj.find(r => r[0]==='2026-10-04' && r[2]==='12'); assert.equal(pachecoJ1[PH.indexOf('Minutos')], 0);   // convocado sem jogar
 const gol = sh['Golos']; const sofJ1 = gol.find(r => r[0]==='2026-10-04' && r[4]==='Sofrido');
-assert.equal(sofJ1[8], '3-7-8-9'); assert.equal(sofJ1[7], '1 Tiago Melo');
+assert.equal(sofJ1[8], 'Ávila · Sá · Pires · Borges'); assert.equal(sofJ1[7], '1 Tiago Melo');
 const marcJ1 = gol.find(r => r[0]==='2026-10-04' && r[4]==='Marcado'); assert.equal(marcJ1[5], '5 Marco Leal'); assert.equal(marcJ1[6], '7 Bruno Sá');
-const q = sh['Quartetos']; assert.ok(q.some(r => r[0]==='3-5-7-8' && r[3]===1 && r[4]===0)); assert.ok(q.some(r => r[0]==='3-7-8-9' && r[4]===1));
+const q = sh['Quartetos']; assert.ok(q.some(r => r[0]==='Ávila · Leal · Sá · Pires' && r[3]===1 && r[4]===0)); assert.ok(q.some(r => r[0]==='Ávila · Sá · Pires · Borges' && r[4]===1));
 assert.equal(sh['Eventos'].find(r => r[5]==='Perda de bola')[4], '62,05');
 console.log('epoca ok');
 // remates com autor no banco, faltas sem inversão

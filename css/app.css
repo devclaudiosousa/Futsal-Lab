@@ -1,29 +1,33 @@
-/* Banco de Futsal — mesma linguagem visual do Marcador: verde de pavilhão, condensada para títulos, Plex para texto e números.
+/* Futsal Lab — cores do clube (laranja e preto), condensada para títulos, Plex para texto e números.
    Layout: coluna única para telemóvel, barra de navegação em baixo; em ecrã largo a navegação passa para a esquerda. */
 :root{
-  --bg:#EDF0EE; --surface:#FAFBFA; --sunken:#E3E8E5; --ink:#16211D; --muted:#5B6A63; --line:#CFD7D2;
-  --accent:#0F7159; --accent-ink:#FFFFFF; --accent-soft:#D5EAE2;
-  --team-a:#1F5FAE; --team-b:#C2461E; --warn:#A66A00; --warn-bg:#FBEFD5; --crit:#B3261E; --crit-bg:#F9DEDB; --ok:#1D7A3E; --ok-bg:#DCF0E2;
+  /* Dia (padrão): branco com o laranja e o preto do clube */
+  color-scheme:light;
+  --bg:#F3F2EF; --surface:#FFFFFF; --sunken:#E9E7E2; --ink:#111111; --muted:#5E5E5E; --line:#D8D5CF;
+  --accent:#FF6B1A; --accent-ink:#111111; --accent-soft:#FFE3D1; --accent-text:#C24E0A;
+  --team-a:#E25A0C; --team-b:#111111; --warn:#8A5A00; --warn-bg:#FBEFD5; --crit:#B3261E; --crit-bg:#F9DEDB; --ok:#1D7A3E; --ok-bg:#DCF0E2;
   --court:#2F6B55; --court-line:#E9F2EC; --court-ink:#0B100E;
+  --bar:#0B0B0B; --bar-ink:#F4F4F4; --bar-muted:#9A9A9A;
   --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
   --nav-h:60px;
 }
+/* Noite: preto com o laranja do clube (automático com o modo escuro do aparelho, ou escolhido em Mais) */
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     color-scheme:dark;
-    --bg:#0E1412; --surface:#161F1C; --sunken:#1D2824; --ink:#E4EBE7; --muted:#95A59D; --line:#2B3833;
-    --accent:#3DBB94; --accent-ink:#06120E; --accent-soft:#183A30;
-    --team-a:#6EA6EE; --team-b:#F07B52; --warn:#E7B04A; --warn-bg:#3A2D10; --crit:#F2877F; --crit-bg:#3C1B19; --ok:#6CCB8E; --ok-bg:#16301F;
+    --bg:#0B0B0B; --surface:#171717; --sunken:#242424; --ink:#F4F4F4; --muted:#A8A8A8; --line:#303030;
+    --accent:#FF6B1A; --accent-ink:#0B0B0B; --accent-soft:#3A1D0B; --accent-text:#FF8A47;
+    --team-a:#FF6B1A; --team-b:#E5E5E5; --warn:#F3C35B; --warn-bg:#3A2D10; --crit:#F59A92; --crit-bg:#3C1B19; --ok:#7CD39A; --ok-bg:#15301F;
     --court:#1E4A3B; --court-line:#C9DAD0; --court-ink:#050807;
   }
 }
 :root[data-theme="dark"]{
   color-scheme:dark;
-  --bg:#0E1412; --surface:#161F1C; --sunken:#1D2824; --ink:#E4EBE7; --muted:#95A59D; --line:#2B3833;
-  --accent:#3DBB94; --accent-ink:#06120E; --accent-soft:#183A30;
-  --team-a:#6EA6EE; --team-b:#F07B52; --warn:#E7B04A; --warn-bg:#3A2D10; --crit:#F2877F; --crit-bg:#3C1B19; --ok:#6CCB8E; --ok-bg:#16301F;
+  --bg:#0B0B0B; --surface:#171717; --sunken:#242424; --ink:#F4F4F4; --muted:#A8A8A8; --line:#303030;
+  --accent:#FF6B1A; --accent-ink:#0B0B0B; --accent-soft:#3A1D0B; --accent-text:#FF8A47;
+  --team-a:#FF6B1A; --team-b:#E5E5E5; --warn:#F3C35B; --warn-bg:#3A2D10; --crit:#F59A92; --crit-bg:#3C1B19; --ok:#7CD39A; --ok-bg:#15301F;
   --court:#1E4A3B; --court-line:#C9DAD0; --court-ink:#050807;
 }
 *{box-sizing:border-box}
@@ -243,3 +247,17 @@ body.live-on .app{padding-bottom:0}
 .panel>*{min-width:0}
 .panel .list .item .main{min-width:0}
 .panel .list .item .main span{overflow-wrap:anywhere}
+
+/* Barras de cima e de baixo sempre pretas com traço laranja (como o planeamento do clube) */
+.topbar,nav.tabs{--ink:var(--bar-ink);--muted:var(--bar-muted);--surface:#171717;--sunken:#242424;--line:#333;--accent-soft:#3A1D0B;color:var(--bar-ink)}
+.topbar{background:var(--bar);border-bottom:3px solid var(--accent)}
+nav.tabs{background:var(--bar);border-top:3px solid var(--accent)}
+nav.tabs a[aria-current="page"]{color:var(--accent)}
+/* laranja como texto em fundo claro precisa de ser mais escuro para se ler */
+.pill.acc,.hero .kick{color:var(--accent-text)}
+/* marcador do Ao vivo: nós a laranja, adversário neutro */
+.scoreline .sc[data-goal="adv"]{background:var(--sunken);border-color:var(--ink)}
+@media (min-width:900px){
+  nav.tabs{border-top:0;border-right:3px solid var(--accent);align-self:stretch;align-content:start;min-height:calc(100vh - 64px);top:64px}
+  nav.tabs a[aria-current="page"]{background:var(--accent-soft)}
+}

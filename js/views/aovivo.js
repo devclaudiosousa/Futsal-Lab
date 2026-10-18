@@ -49,38 +49,40 @@ export async function render(main, [id], ctx) {
     const d = L.derive(live, Date.now());
     const per = live.periods[Math.max(0, d.per)];
     const running = d.phase === 'live';
+    const bola = !running ? '' : d.paused
+      ? `<button class="bola pausa" data-act="pause">PAUSA<small>desconto de tempo · toca para continuar</small></button>`
+      : `<button class="bola ${d.stopped ? 'parada' : 'jogo'}" data-act="stop">${d.stopped ? 'BOLA PARADA' : 'BOLA EM JOGO'}<small>${d.stopped ? 'toca quando a bola voltar' : 'toca quando a bola sair'}</small></button>`;
+    const inicio = d.canKickoff && d.nextPeriod ? `<button class="bola inicio" data-act="kickoff">INÍCIO${d.per < 0 ? '' : ' ' + esc(pc(d.nextPeriod)).toUpperCase()}<small>${d.per < 0 ? 'escolhe o cinco e começa o jogo' : 'ajusta o cinco e começa'}</small></button>` : '';
+    const ordem = [...d.players].sort((a, b) => (parseInt(a.num) || 999) - (parseInt(b.num) || 999));
     main.innerHTML = `<div class="live">
-      <div class="sitbar" role="toolbar" aria-label="Situações"><button class="sit edit${editPresets ? ' on' : ''}" data-act="presets" aria-pressed="${editPresets}">${editPresets ? '✓ Presets' : '✎ Presets'}</button>${L.SITUACOES.map(s => `<button class="sit${s.type === 'state' && d.states[s.group] === s.id ? ' on' : ''}${live.presets?.[s.id] ? ' preset' : ''}${editPresets ? ' editing' : ''}" data-sit="${s.id}">${esc(s.label)}</button>`).join('')}
-        <button class="sit" data-act="repor" ${d.snapshot && running ? '' : 'disabled'}>Repor</button></div>
+      <div class="sitbar" role="toolbar" aria-label="Situações">${L.SITUACOES.map(s => `<button class="sit${s.type === 'state' && d.states[s.group] === s.id ? ' on' : ''}${live.presets?.[s.id] ? ' preset' : ''}${editPresets ? ' editing' : ''}" data-sit="${s.id}">${esc(s.label)}</button>`).join('')}
+        <button class="sit" data-act="repor" ${d.snapshot && running ? '' : 'disabled'}>Repor</button><span class="sp"></span><button class="sit edit${editPresets ? ' on' : ''}" data-act="presets" aria-pressed="${editPresets}">${editPresets ? '✓ Presets' : '✎ Presets'}</button></div>
       ${editPresets ? '<p class="small hint-edit">Toca numa situação para definir os jogadores do preset. Carrega em ✓ Presets para voltar a marcar.</p>' : ''}
-
-      <div class="clocks">
-        <div class="cl"><span>Parte</span><b id="lvPer">${d.per < 0 ? '–' : esc(pc(per.lbl))}</b></div>
-        <div class="cl"><span>Tempo</span><b id="lvRun" class="${d.paused ? 'held' : ''}">${L.clock(d.run)}</b></div>
-        <div class="cl big"><span>Tempo útil</span><b id="lvEff" class="${d.paused || d.stopped ? 'held' : ''}${d.effLeft < 0 ? ' over' : ''}">${running ? L.clock(d.effLeft) : '--:--'}</b></div>
+      <div class="board">
+        <div class="grade">${ordem.map(p => card(p, d)).join('')}</div>
+        <div class="lado">
+          <div class="relogio"><span class="lbl">${d.per < 0 ? 'Antes do jogo' : esc(pn(per.lbl))} · tempo útil</span>
+            <b id="lvEff" class="mono ${d.paused || d.stopped ? 'held' : ''}${d.effLeft < 0 ? ' over' : ''}">${running ? L.clock(d.effLeft) : d.per < 0 ? L.clock(live.periods[0].min * 60) : '--:--'}</b>
+            <span class="sub mono"><span>corrido <span id="lvRun">${L.clock(d.run)}</span></span><span class="${d.foulsNow >= 5 ? 'neg' : ''}">faltas ${d.foulsNow} · adv ${d.foulsAdvNow}</span></span></div>
+          ${inicio}${bola}
+          <div class="dois">
+            <button class="sc nos" data-goal="nos"><span class="who">${esc(short(nos))}</span><b>${d.score.nos}</b><small>toque = golo</small></button>
+            <button class="sc adv" data-goal="adv"><span class="who">${esc(short(adv))}</span><b>${d.score.adv}</b><small>toque = golo</small></button>
+          </div>
+          <div class="dois">
+            <button class="b" data-shot="nos">Remate<small>nosso · ${d.shots.nos}</small></button>
+            <button class="b" data-shot="adv">Remate<small>adv. · ${d.shots.adv}</small></button>
+            <button class="b${d.foulsNow >= 5 ? ' warn' : ''}" data-foul>Falta<small>nós ${d.foulsNow} · adv ${d.foulsAdvNow}</small></button>
+            <button class="b" data-card>Cartão<small>${d.cards.length ? d.cards.length + ' no jogo' : 'amarelo · vermelho'}</small></button>
+            <button class="b" data-act="undo">↶ Desfazer<small>troca ou situação</small></button>
+            ${running && !d.paused ? '<button class="b" data-act="pause">Desconto<small>de tempo</small></button>' : '<span></span>'}
+          </div>
+          ${running ? '<button class="b fim" data-fim>Fim da parte<small>manter premido</small></button>' : ''}
+        </div>
       </div>
-      <div class="ctl">
-        ${d.canKickoff ? `<button class="primary" data-act="kickoff" ${d.nextPeriod ? '' : 'disabled'}>${d.per < 0 ? 'Início' : 'Início ' + esc(pc(d.nextPeriod || ''))}</button>` : ''}
-        ${running ? `<button data-act="stop" class="${d.stopped ? 'tog' : ''}" ${d.paused ? 'disabled' : ''}>${d.stopped ? 'Retomar' : 'Paragem'}</button>
-          <button data-act="pause" class="${d.paused ? 'tog' : ''}">${d.paused ? 'Continuar' : 'Pausa'}</button>
-          <button data-act="break">Fim da parte</button>` : ''}
-        <button data-act="undo" title="Desfaz a última substituição, troca de posição ou situação">Desfazer</button>
-      </div>
-
-      <div class="scoreline">
-        <button class="sc" data-goal="${teamH}">${esc(short(labH))}<b>${d.score[teamH]}</b><small>golo</small></button>
-        <button class="sh" data-shot="${teamH}"><b>${d.shots[teamH]}</b><small>remates</small></button>
-        <button class="sh" data-shot="${teamA}"><b>${d.shots[teamA]}</b><small>remates</small></button>
-        <button class="sc" data-goal="${teamA}">${esc(short(labA))}<b>${d.score[teamA]}</b><small>golo</small></button>
-      </div>
-      <button class="foul${d.foulsNow >= 5 ? ' warn' : ''}" data-foul>Falta<b>${d.foulsNow}</b><small>${d.foulsNow >= 5 ? 'a próxima dá livre de 10 m' : 'nesta parte'}</small></button>
       <p class="small muted hint">${hint(d)}</p>
 
-      <div class="squad">${['Em campo', 'Banco'].map((h, k) => `<div class="grp"><h2>${h}</h2><div class="cards">${
-        d.players.filter(p => p.active === (k === 0)).sort((a, b) => k === 0 ? L.SLOTS.indexOf(a.slot) - L.SLOTS.indexOf(b.slot) : (parseInt(a.num) || 99) - (parseInt(b.num) || 99))
-          .map(p => card(p, d)).join('') || '<p class="muted small">—</p>'}</div></div>`).join('')}</div>
-
-      <details class="panel" ${showReg ? 'open' : ''} id="regDet"><summary><h2 style="display:inline">Golos, remates e faltas (${registo(d).length})</h2></summary>${regHTML(d)}</details>
+      <details class="panel" ${showReg ? 'open' : ''} id="regDet"><summary><h2 style="display:inline">Registo: golos, remates, faltas e cartões (${registo(d).length})</h2></summary>${regHTML(d)}</details>
       <details class="panel" ${showTab ? 'open' : ''} id="tabDet"><summary><h2 style="display:inline">Tempos por parte</h2></summary>${tabela(d)}</details>
       <div class="row"><button id="xls">Exportar Excel (formato Control-Stats)</button><a class="btn" href="#/jogo/${j.id}">Ver o jogo</a></div>
       ${modal || ''}
@@ -88,44 +90,50 @@ export async function render(main, [id], ctx) {
     wire(d);
   }
 
+  // Cartão do jogador: sempre no mesmo sítio (por número). Em campo: tempo desta entrada (verde → amarelo aos 4' → vermelho aos 6').
+  // No banco: tempo a descansar; "descansado" quando já descansou o que jogou na última entrada.
   function card(p, d) {
     const t = p.active ? p.stintPlay : p.stintRest;
-    return `<button class="pc${p.active ? ' on' : ''}${sel === p.id ? ' sel' : ''}" data-p="${p.id}">
-      <span class="no">${esc(p.num)}</span><span class="nm" title="${esc(p.nome || '')}">${esc(apelido(p))}</span>
-      ${p.slot ? `<span class="slot">${L.SLOT_LBL[p.slot]}</span>` : ''}
-      <span class="tm mono" data-tm="${p.id}" title="${p.active ? 'Em campo desde a última troca' : 'A descansar desde a última troca'}">${L.clock(t)}</span>
-      <span class="tot mono" data-tot="${p.id}" title="Tempo útil jogado no jogo">total ${L.clock(p.totalPlay)}</span>
-      <span class="meta mono"><span title="Entradas nesta parte">↻${p.rot[Math.max(0, d.per)]}</span><span title="Rácio jogo/descanso desde a última troca" class="${p.stintWR > 1.1 ? 'hot' : p.stintWR < 0.9 ? 'cool' : ''}">${p.stintWR.toFixed(2)}</span></span>
+    const cor = p.active ? (p.stintPlay >= 360 ? ' red' : p.stintPlay >= 240 ? ' amb' : '') : '';
+    const pronto = !p.active && p.lastStint >= 30 && p.stintRest >= p.lastStint;
+    const cards = d.cards.filter(c => c.by === p.id).map(c => (c.cor === 'verm' ? '🟥' : '🟨')).join('');
+    return `<button class="pc${p.active ? ' on' : ''}${cor}${pronto ? ' pronto' : ''}${sel === p.id ? ' sel' : ''}" data-p="${p.id}">
+      <span class="h"><span class="no">${esc(p.num)}</span><span class="nm" title="${esc(p.nome || '')}">${esc(p.curto || p.nome || '')}</span>${cards ? `<span class="cart">${cards}</span>` : ''}</span>
+      <span class="tm mono" data-tm="${p.id}">${L.clock(t)}</span>
+      <span class="ft mono"><span data-tot="${p.id}">total ${L.clock(p.totalPlay)}</span><span data-ok="${p.id}">${pronto ? '✓ descansado' : '↻' + p.rot[Math.max(0, d.per)]}</span></span>
     </button>`;
   }
   // Registo editável: golos (nossos e sofridos), remates nossos e faltas, com o tempo útil de cada um
   function registo(d) {
     const quando = Object.fromEntries(d.rows.filter(r => r.id).map(r => [r.id, r]));
-    return live.events.filter(e => e.type === 'goal' || e.type === 'foul' || (e.type === 'shot' && e.team === 'nos'))
-      .map(e => ({e, r: quando[e.id] || d.goals.find(g => g.id === e.id) || d.fouls.find(f => f.id === e.id)}))
+    return live.events.filter(e => e.type === 'goal' || e.type === 'foul' || e.type === 'card' || (e.type === 'shot' && e.team === 'nos'))
+      .map(e => ({e, r: quando[e.id] || d.goals.find(g => g.id === e.id) || d.fouls.find(f => f.id === e.id) || d.foulsAdv.find(f => f.id === e.id) || d.cards.find(c => c.id === e.id)}))
       .filter(x => x.r).reverse();
   }
   function regHTML(d) {
     const nome = id => { const p = d.byId[id]; return p ? `${p.num} ${apelido(p)}` : ''; };
-    const L2 = {goal: e => e.team === 'nos' ? 'Golo marcado' : 'Golo sofrido', shot: () => 'Remate', foul: () => 'Falta'};
+    const L2 = {goal: e => e.team === 'nos' ? 'Golo marcado' : 'Golo sofrido', shot: () => 'Remate', foul: e => e.team === 'adv' ? 'Falta do adversário' : 'Falta',
+      card: e => `${e.cor === 'verm' ? '🟥 Vermelho' : '🟨 Amarelo'}${e.team === 'adv' ? ' · adversário' : ''}`};
     const items = registo(d);
     if (!items.length) return '<p class="muted small">Ainda nada marcado.</p>';
     return `<div class="list">${items.map(({e, r}) => {
       const det = e.type === 'goal' && e.team === 'nos' ? [e.by ? nome(e.by) : '<span class="pill warn">sem autor</span>', e.ast ? 'assist. ' + nome(e.ast) : ''].filter(Boolean).join(' · ')
         : e.type === 'shot' ? (e.by ? nome(e.by) : '<span class="pill warn">sem autor</span>')
-        : e.type === 'foul' ? [e.by ? nome(e.by) : '<span class="pill warn">sem jogador</span>', e.zona || '<span class="pill warn">sem zona</span>'].join(' · ') : '';
-      return `<div class="item"><span class="pill${e.type === 'goal' ? (e.team === 'nos' ? ' ok' : ' crit') : ''}">${esc(pc(live.periods[r.per]?.lbl))} ${L.clock(r.eff)}</span>
+        : e.type === 'foul' && e.team === 'adv' ? ''
+        : e.type === 'foul' ? [e.by ? nome(e.by) : '<span class="pill warn">sem jogador</span>', e.zona || '<span class="pill warn">sem zona</span>'].join(' · ')
+        : e.type === 'card' ? (e.team === 'adv' ? (e.num ? 'n.º ' + esc(e.num) : 'sem número') : (e.by ? nome(e.by) : '<span class="pill warn">sem jogador</span>')) : '';
+      return `<div class="item"><span class="pill${e.type === 'goal' ? (e.team === 'nos' ? ' ok' : ' crit') : ''}">${r.per >= 0 ? esc(pc(live.periods[r.per]?.lbl)) + ' ' + L.clock(r.eff) : 'antes'}</span>
         <div class="main"><b>${L2[e.type](e)}</b><span>${det}</span></div>
-        ${e.type === 'goal' && e.team === 'adv' ? '' : `<button class="ghost" data-edit="${e.id}">Editar</button>`}<button class="ghost danger icon" data-del="${e.id}" aria-label="Apagar">✕</button></div>`;
+        ${(e.type === 'goal' || e.type === 'foul') && e.team === 'adv' || e.type === 'card' ? '' : `<button class="ghost" data-edit="${e.id}">Editar</button>`}<button class="ghost danger icon" data-del="${e.id}" aria-label="Apagar">✕</button></div>`;
     }).join('')}</div>`;
   }
   function hint(d) {
     if (sel) return 'Toca no jogador que entra ou sai. Toca outra vez para cancelar.';
-    if (d.phase === 'pre') return 'Escolhe o cinco inicial: toca num jogador em campo e noutro do banco para trocar. Pressão longa no cartão muda a posição.';
+    if (d.phase === 'pre') return 'Escolhe o cinco inicial: toca num jogador em campo (contorno laranja) e noutro do banco para trocar.';
     if (d.phase === 'break' && d.per >= 1) return d.nextPeriod ? `Fim ${d.per >= 2 ? 'do' : 'da'} ${pn(live.periods[d.per].lbl).toLowerCase()}. ${d.per >= 2 ? 'Para o segundo prolongamento' : 'Se houver prolongamento'}, ajusta o cinco e carrega em Início ${pc(d.nextPeriod)}; se não, o jogo está terminado.` : 'Jogo terminado.';
     if (d.phase === 'break') return `Intervalo. ${d.nextPeriod ? 'Ajusta o cinco e carrega em Início ' + pc(d.nextPeriod) + '.' : ''}`;
     if (d.phase === 'end') return 'Jogo terminado.';
-    return 'Toque no golo ou remate soma; pressão longa anula o último. Pressão longa numa situação define o preset.';
+    return 'Troca: toca no jogador em campo e no do banco. Pressão longa no golo, remate ou falta anula o último.';
   }
   function tabela(d) {
     const pers = live.periods.map((p, i) => i).filter(i => i <= Math.max(0, d.per));
@@ -152,7 +160,14 @@ export async function render(main, [id], ctx) {
       if (team === 'nos') askAuthor(live.events.at(-1).id, 'shot');
     }, () => set(L.undoShot(live, b.dataset.shot))));
     const fb = main.querySelector('[data-foul]');
-    if (fb) press(fb, () => (d.phase === 'live' ? askFoul() : toast('As faltas contam durante a parte: carrega primeiro em Início.')), () => { if (d.fouls.length && confirm('Anular a última falta?')) set(L.undoFoul(live)); });
+    if (fb) press(fb, () => (d.phase === 'live' ? askFoul() : toast('As faltas contam durante a parte: carrega primeiro em Início.')), () => {
+      const ult = L.lastOf(live, e => e.type === 'foul');
+      if (ult && confirm(`Anular a última falta${ult.team === 'adv' ? ' do adversário' : ''}?`)) set(L.removeEvent(live, ult.id));
+    });
+    const cb = main.querySelector('[data-card]');
+    if (cb) press(cb, () => askCard(), () => { if (d.cards.length && confirm('Anular o último cartão?')) set(L.undoCard(live)); });
+    const fim = main.querySelector('[data-fim]');
+    if (fim) press(fim, () => toast('Mantém premido para terminar a parte'), () => add({type: 'break'}));
     main.querySelectorAll('[data-sit]').forEach(b => press(b, () => runSit(b.dataset.sit), () => openPreset(b.dataset.sit, d)));
     main.querySelector('#tabDet').ontoggle = e => { showTab = e.target.open; };
     main.querySelector('#regDet').ontoggle = e => { showReg = e.target.open; };
@@ -221,16 +236,41 @@ export async function render(main, [id], ctx) {
     const d = L.derive(live, Date.now());
     const on = editId ? [...d.players].sort((a, b) => (b.active - a.active) || (parseInt(a.num) || 99) - (parseInt(b.num) || 99))
       : d.players.filter(p => p.active).sort((a, b) => L.SLOTS.indexOf(a.slot) - L.SLOTS.indexOf(b.slot));
-    modal = `<div class="modal"><div class="box"><h3>Falta · quem fez?</h3>
+    modal = `<div class="modal"><div class="box"><h3>${editId ? 'Falta · quem fez?' : 'Falta nossa · quem fez?'}</h3>
       <div class="seg zseg" role="group" aria-label="Zona"><button data-zona="MD" aria-pressed="${zona === 'MD'}">MD</button><button data-zona="MO" aria-pressed="${zona === 'MO'}">MO</button></div>
       <div class="pick">${on.map(p => `<button data-fby="${p.id}" class="${p.active ? 'on' : ''}"><b>${esc(p.num)}</b> ${esc(apelido(p))}<small class="muted">${L.SLOT_LBL[p.slot] || ''}</small></button>`).join('')}</div>
-      <div class="row"><button data-fby="" class="ghost">Sem jogador</button><button data-close class="ghost">Cancelar</button></div></div></div>`;
+      <div class="row"><button data-fby="" class="ghost">Sem jogador</button><button data-close class="ghost">Cancelar</button></div>
+      ${editId ? '' : `<button class="fadv" data-fadv>Falta do <b>adversário</b><small>conta para as faltas deles (${d.foulsAdvNow} nesta parte)</small></button>`}</div></div>`;
     draw();
+    const fa = main.querySelector('[data-fadv]'); if (fa) fa.onclick = () => { modal = null; add({type: 'foul', team: 'adv'}); };
     main.querySelectorAll('[data-zona]').forEach(b => b.onclick = () => askFoul(zona === b.dataset.zona ? '' : b.dataset.zona, editId));
     main.querySelectorAll('[data-fby]').forEach(b => b.onclick = () => {
       modal = null;
       if (editId) set(L.editEvent(live, editId, {by: b.dataset.fby || null, zona}));
       else add({type: 'foul', team: 'nos', by: b.dataset.fby || null, zona});
+    });
+  }
+  // Cartão: cor → equipa → jogador (nosso) ou número (adversário). 3 toques.
+  function askCard(cor = '', team = '', num = '') {
+    const d = L.derive(live, Date.now());
+    const passo = !cor ? 'cor' : !team ? 'team' : team === 'nos' ? 'nos' : 'adv';
+    const lista = [...d.players].sort((a, b) => (b.active - a.active) || (parseInt(a.num) || 99) - (parseInt(b.num) || 99));
+    const corTxt = cor === 'verm' ? '🟥 Vermelho' : '🟨 Amarelo';
+    modal = `<div class="modal"><div class="box"><h3>${passo === 'cor' ? 'Cartão' : passo === 'team' ? corTxt + ' · a quem?' : passo === 'nos' ? corTxt + ' · que jogador?' : corTxt + ' · adversário n.º'}</h3>
+      ${passo === 'cor' ? `<div class="dois"><button class="cartao am" data-cor="am">🟨 Amarelo</button><button class="cartao vm" data-cor="verm">🟥 Vermelho</button></div>` : ''}
+      ${passo === 'team' ? `<div class="dois"><button class="cartao" data-team="nos">${esc(short(nos))}</button><button class="cartao" data-team="adv">${esc(short(adv))}</button></div>` : ''}
+      ${passo === 'nos' ? `<div class="pick">${lista.map(p => `<button data-cby="${p.id}" class="${p.active ? 'on' : ''}"><b>${esc(p.num)}</b> ${esc(apelido(p))}</button>`).join('')}</div>` : ''}
+      ${passo === 'adv' ? `<div class="numpad"><output>${esc(num) || '–'}</output>${[1, 2, 3, 4, 5, 6, 7, 8, 9, '⌫', 0, '✓'].map(k => `<button data-k="${k}"${k === '✓' ? ' class="primary"' : ''}>${k}</button>`).join('')}</div>
+        <div class="row"><button data-k="sem" class="ghost">Sem número</button></div>` : ''}
+      <div class="row"><button data-close class="ghost">Cancelar</button></div></div></div>`;
+    draw();
+    main.querySelectorAll('[data-cor]').forEach(b => b.onclick = () => askCard(b.dataset.cor));
+    main.querySelectorAll('[data-team]').forEach(b => b.onclick = () => askCard(cor, b.dataset.team));
+    main.querySelectorAll('[data-cby]').forEach(b => b.onclick = () => { modal = null; add({type: 'card', cor, team: 'nos', by: b.dataset.cby}); });
+    main.querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
+      const k = b.dataset.k;
+      if (k === '✓' || k === 'sem') { modal = null; add({type: 'card', cor, team: 'adv', num: k === 'sem' ? '' : num}); return; }
+      askCard(cor, team, k === '⌫' ? num.slice(0, -1) : (num + k).slice(0, 3));
     });
   }
   function openPos(pid, d) {
@@ -286,6 +326,10 @@ export async function render(main, [id], ctx) {
     for (const p of d.players) {
       set2(`[data-tm="${p.id}"]`, L.clock(p.active ? p.stintPlay : p.stintRest));
       set2(`[data-tot="${p.id}"]`, 'total ' + L.clock(p.totalPlay));
+      const pronto = !p.active && p.lastStint >= 30 && p.stintRest >= p.lastStint;
+      set2(`[data-ok="${p.id}"]`, pronto ? '✓ descansado' : '↻' + p.rot[Math.max(0, d.per)]);
+      const el = main.querySelector(`[data-p="${p.id}"]`);
+      if (el) { el.classList.toggle('amb', p.active && p.stintPlay >= 240 && p.stintPlay < 360); el.classList.toggle('red', p.active && p.stintPlay >= 360); el.classList.toggle('pronto', pronto); }
     }
     const tb = main.querySelector('#tabDet');
     if (tb?.open && d.phase === 'live') { const box = tb.querySelector('.tw'); if (box) box.outerHTML = tabela(d); }

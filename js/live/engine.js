@@ -47,13 +47,13 @@ export function derive(live, now = null) {
   const P = live.plantel || [];
   const nper = live.periods.length;
   const pl = {};
-  for (const p of P) pl[p.id] = {id: p.id, rot: Array(nper).fill(0), play: Array(nper).fill(0), rest: Array(nper).fill(0), stintPlay: 0, stintRest: 0};
+  for (const p of P) pl[p.id] = {id: p.id, rot: Array(nper).fill(0), play: Array(nper).fill(0), rest: Array(nper).fill(0), stintPlay: 0, stintRest: 0, lastStint: 0};
   const st = {
     per: -1, phase: 'pre',            // pre | live | break | end
     paused: false, stopped: false,
     run: 0, eff: 0,                    // segundos na parte atual
     court: {...(live.court0 || {})},
-    score: {nos: 0, adv: 0}, shots: {nos: 0, adv: 0}, fouls: [], foulsPer: {},
+    score: {nos: 0, adv: 0}, shots: {nos: 0, adv: 0}, fouls: [], foulsPer: {}, foulsAdv: [], foulsAdvPer: {}, cards: [],
     states: {num: null, sis: null},
     snapshot: null,                    // lugares antes do 1.º preset (para o Repor)
     rows: [], segments: [], goals: [],
@@ -86,7 +86,7 @@ export function derive(live, now = null) {
     const slot = SLOTS.find(s => st.court[s] === off);
     if (slot) st.court[slot] = on;
     else { const free = SLOTS.find(s => st.court[s] == null); if (free) st.court[free] = on; }
-    if (pl[off]) pl[off].stintRest = 0;
+    if (pl[off]) { pl[off].lastStint = pl[off].stintPlay; pl[off].stintRest = 0; }
     if (pl[on]) { pl[on].stintPlay = 0; if (st.per >= 0) pl[on].rot[st.per] += 1; }
     row('substitution', off, on, false, e);
   };
@@ -103,7 +103,7 @@ export function derive(live, now = null) {
     }
     while (leaving.length || entering.length) {
       const off = leaving.shift() ?? null, on = entering.shift() ?? null;
-      if (off != null && pl[off]) pl[off].stintRest = 0;
+      if (off != null && pl[off]) { pl[off].lastStint = pl[off].stintPlay; pl[off].stintRest = 0; }
       if (on != null && pl[on]) { pl[on].stintPlay = 0; if (st.per >= 0) pl[on].rot[st.per] += 1; }
       row('substitution', off, on, false, e);
     }
@@ -118,7 +118,7 @@ export function derive(live, now = null) {
       case 'kickoff':
         if (st.per + 1 >= nper || st.phase === 'live') break;
         st.per++; st.phase = 'live'; st.paused = false; st.stopped = false; st.run = 0; st.eff = 0;
-        for (const id in pl) { pl[id].stintPlay = 0; pl[id].stintRest = 0; }
+        for (const id in pl) { pl[id].stintPlay = 0; pl[id].stintRest = 0; pl[id].lastStint = 0; }
         for (const id of onCourt()) pl[id].rot[st.per] = 1;
         for (const id of onCourt()) row('lineup', id, null, false, e);
         row('kick off', null, null, false, e);
@@ -158,8 +158,14 @@ export function derive(live, now = null) {
         st.shots[e.team === 'nos' ? 'nos' : 'adv']++;
         if (e.team === 'nos') row('remate feito', e.by || null, null, true, e);
         break;
-      case 'foul': {         // falta nossa: quem fez e zona (MD/MO do nosso ponto de vista)
+      case 'foul': {         // falta nossa: quem fez e zona (MD/MO do nosso ponto de vista); do adversário só conta
         if (st.phase !== 'live') break;
+        if (e.team === 'adv') {
+          st.foulsAdv.push({id: e.id, per: st.per, eff: st.eff});
+          st.foulsAdvPer[st.per] = (st.foulsAdvPer[st.per] || 0) + 1;
+          row('falta adversário', null, null, false, e);
+          break;
+        }
         st.fouls.push({id: e.id, per: st.per, eff: st.eff, by: e.by || null, zona: e.zona || ''});
         st.foulsPer[st.per] = (st.foulsPer[st.per] || 0) + 1;
         row('falta' + (e.zona ? ' ' + e.zona : ''), e.by || null, null, false, e);
@@ -174,6 +180,11 @@ export function derive(live, now = null) {
           st.states[sit.group] = sit.id;
           row(sit.label + ' início', null, null, false, e);
         } else row(sit.label, null, null, false, e);
+        break;
+      }
+      case 'card': {         // cartão: nosso (by = atleta) ou do adversário (num = camisola)
+        st.cards.push({id: e.id, per: st.per, eff: st.eff, team: e.team, cor: e.cor, by: e.by || null, num: e.num || ''});
+        row((e.cor === 'verm' ? 'vermelho' : 'amarelo') + (e.team === 'adv' ? ' adversário' + (e.num ? ' ' + e.num : '') : ''), e.team === 'adv' ? null : e.by || null, null, false, e);
         break;
       }
       case 'repor': row('Repor', null, null, false, e); break;
@@ -195,7 +206,7 @@ export function derive(live, now = null) {
   return {
     ...st, per: st.per, players, byId: Object.fromEntries(players.map(p => [p.id, p])),
     effLeft: period ? period.min * 60 - st.eff : 0,
-    foulsNow: st.foulsPer[per] || 0,
+    foulsNow: st.foulsPer[per] || 0, foulsAdvNow: st.foulsAdvPer[per] || 0,
     canKickoff: st.phase === 'pre' || st.phase === 'break',
     nextPeriod: live.periods[st.per + 1]?.lbl || null,
   };
@@ -234,8 +245,8 @@ export function setGoalAuthors(live, id, {by, ast}) {
 export function editEvent(live, id, patch) {
   return {...live, events: live.events.map(e => e.id === id ? {...e, ...patch} : e)};
 }
-export function undoFoul(live) {
-  const e = lastOf(live, e => e.type === 'foul');
+export function undoFoul(live, team = 'nos') {
+  const e = lastOf(live, e => e.type === 'foul' && (e.team || 'nos') === team);
   return e ? removeEvent(live, e.id) : live;
 }
 export function undoShot(live, team) {
@@ -294,4 +305,8 @@ export function toBancoEvents(live, now = null) {
   for (const [p, e] of Object.entries(ends)) { out.push({id: id++, type: 'ini_parte', parte: +p + 1, t: 0}); out.push({id: id++, type: 'fim_parte', parte: +p + 1, t: e}); }
   for (const g of d.goals) out.push({id: id++, type: 'golo', team: g.team === 'nos' ? 'A' : 'B', parte: g.per + 1, t: g.eff});
   return out;
+}
+export function undoCard(live) {
+  const e = lastOf(live, e => e.type === 'card');
+  return e ? removeEvent(live, e.id) : live;
 }

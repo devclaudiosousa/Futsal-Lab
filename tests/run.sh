@@ -7,3 +7,4 @@ node tests/importcs.test.mjs
 node tests/tempos.test.mjs
 node tests/xlsx.test.mjs
 node tests/livro.test.mjs
+node tests/faltas-cartoes.test.mjs

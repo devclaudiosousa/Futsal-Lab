@@ -79,6 +79,7 @@ export function analisarJogo(j, {atById, atByNum}) {
   // jogo só marcado no banco: remates por jogador a partir dos autores (golo conta como remate)
   if (!ev.length && dl) {
     for (const e of live.events) if ((e.type === 'shot' || e.type === 'goal') && e.team === 'nos' && e.by && atById[e.by]) { const x = g(atById[e.by].num, '', e.by); x.rem++; if (e.type === 'goal') x.enq++; }
+    for (const c of dl.cards || []) if (c.team !== 'adv' && c.by && atById[c.by]) { const x = g(atById[c.by].num, '', c.by); if (c.cor === 'verm') x.verm++; else x.am++; }
     for (const f of dl.fouls) if (f.by && atById[f.by]) { const x = g(atById[f.by].num, '', f.by); if (f.zona === 'MD') x.fcMD++; else if (f.zona === 'MO') x.fcMO++; else x.fcSemZona = (x.fcSemZona || 0) + 1; }
   }
 
@@ -145,7 +146,7 @@ export function analisarJogo(j, {atById, atByNum}) {
   else { gn = ga = null; }
   if (dl) { rn = dl.shots.nos; ra = dl.shots.adv; } else { rn = cnt(e => SHOTS.includes(e.type), A); ra = cnt(e => SHOTS.includes(e.type), B); }
   const totais = {gn, ga, rn, ra, enq: cnt(e => e.type === 'remate_enquadrado' || e.type === 'golo', A), perd: cnt(e => e.type === 'perda', A),
-    recup: cnt(e => e.type === 'recuperacao', A), fn: ev.length ? cnt(e => e.type === 'falta', A) : dl ? dl.fouls.length : Object.values(man.atletas || {}).reduce((s, m) => s + (+m.fcMD || 0) + (+m.fcMO || 0), 0), fa: cnt(e => e.type === 'falta', B), cantos: cnt(e => e.type === 'canto', A)};
+    recup: cnt(e => e.type === 'recuperacao', A), fn: ev.length ? cnt(e => e.type === 'falta', A) : dl ? dl.fouls.length : Object.values(man.atletas || {}).reduce((s, m) => s + (+m.fcMD || 0) + (+m.fcMO || 0), 0), fa: ev.length ? cnt(e => e.type === 'falta', B) : dl ? (dl.foulsAdv || []).length : 0, cantos: cnt(e => e.type === 'canto', A)};
 
   // quartetos: pelos segmentos; nos jogos à mão só há os golos (sem minutos)
   let qs = segEvents ? quartets(segEvents) : [];

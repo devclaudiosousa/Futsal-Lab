@@ -94,9 +94,17 @@ export async function render(main, [id], ctx) {
 
       ${manList.length ? (() => { const prol = j.prolongamento || manList.some(a => (j.minutosP?.[a.id] || [])[2] || (j.minutosP?.[a.id] || [])[3]);
         const P = prol ? ['1.ª', '2.ª', 'Prol. 1', 'Prol. 2'] : ['1.ª', '2.ª'];
-        const tot = Object.values(j.minutos || {}).reduce((a, b) => a + b, 0);
-        return `<details class="panel" id="manDet"><summary><h2 style="display:inline">Tempos de jogo à mão</h2> <span class="small muted">${tot ? Math.round(tot / 60) + "' no total" : 'por preencher'}</span></summary>
-        <p class="small muted">Para jogos sem Ao vivo. Escreve 15:38 ou só os minutos (12). Com as partes preenchidas, o total faz-se sozinho; também podes escrever só o total.</p>
+        // soma de todos os atletas (só os que existem no plantel): com 5 em campo tem de dar 5 × a duração
+        const vivos = Object.entries(j.minutos || {}).filter(([id]) => byId[id]);
+        const tot = vivos.reduce((a, [, v]) => a + v, 0);
+        const parteTot = i => vivos.reduce((a, [id]) => a + (+(j.minutosP?.[id] || [])[i] || 0), 0);
+        const esperado = 5 * (2400 + (prol ? 600 : 0)), dif = tot - esperado;
+        const temPartes = vivos.some(([id]) => (j.minutosP?.[id] || []).some(Boolean));
+        const partesTxt = temPartes ? [0, 1, ...(prol ? [2, 3] : [])].map(i => { const t = parteTot(i), e = i < 2 ? 6000 : 1500; return `<span class="${Math.abs(t - e) > 5 ? 'neg' : ''}">${P[i]} ${mmss(t)}</span>`; }).join(' · ') : '';
+        const aviso = tot && Math.abs(dif) > 5 ? `<p class="small" style="color:var(--crit)">A soma dá <b>${mmss(tot)}</b> e devia dar <b>${mmss(esperado)}</b> (5 em campo × ${prol ? 50 : 40} min): ${dif > 0 ? 'sobram' : 'faltam'} <b>${mmss(Math.abs(dif))}</b>. ${dif > 0 ? 'Há tempo a mais em algum atleta (ou um atleta repetido).' : 'Falta tempo em algum atleta (ou houve inferioridade por expulsão).'}</p>` : '';
+        return `<details class="panel" id="manDet"${aviso ? ' open' : ''}><summary><h2 style="display:inline">Tempos de jogo à mão</h2> <span class="small ${aviso ? 'neg' : 'muted'}">${tot ? mmss(tot) + ' no total' + (aviso ? ' ⚠' : ' ✓') : 'por preencher'}</span></summary>
+        <p class="small muted">Para jogos sem Ao vivo. Escreve 15:38 ou só os minutos (12). Com as partes preenchidas, o total faz-se sozinho; também podes escrever só o total. A soma de todos deve dar ${mmss(esperado)}${temPartes ? ` (cada parte ${mmss(6000)})` : ''}.</p>
+        ${temPartes ? `<p class="small">Soma por parte: ${partesTxt}</p>` : ''}${aviso}
         <label class="row small"><input type="checkbox" id="manProl" ${prol ? 'checked' : ''}> Houve prolongamento</label>
         <div class="tw"><table><thead><tr><th>Atleta</th>${P.map(x => `<th>${x}</th>`).join('')}<th>Total</th></tr></thead><tbody>
         ${manList.map(a => { const pp = j.minutosP?.[a.id] || [], t = j.minutos?.[a.id] || 0, temP = pp.some(Boolean);

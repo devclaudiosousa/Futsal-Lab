@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import * as L from '../js/live/engine.js';
+import {buildEpoca} from '../js/epoca-excel.js';
+const ats = ['1 A GR', '4 B Fixo', '7 C Ala', '8 D Ala', '9 E Pivô', '10 F Ala'].map(s => { const [n, nome, pos] = s.split(' '); return {id: 'a' + n, num: n, nome, posicao: pos, ativo: true}; });
+let live = L.newLive({plantel: ats.map(a => ({id: a.id, num: a.num, nome: a.nome, pos: a.posicao}))});
+const T = s => 1e6 + s * 1000;
+live = L.push(live, {type: 'kickoff'}, T(0));
+live = L.push(live, {type: 'foul', team: 'adv'}, T(10)); live = L.push(live, {type: 'foul', team: 'adv'}, T(20));
+live = L.push(live, {type: 'foul', team: 'nos', by: 'a4', zona: 'MO'}, T(30));
+live = L.push(live, {type: 'card', cor: 'am', team: 'nos', by: 'a4'}, T(40));
+live = L.push(live, {type: 'card', cor: 'verm', team: 'adv', num: '14'}, T(50));
+live = L.push(live, {type: 'sub', off: 'a7', on: 'a10'}, T(100));
+let d = L.derive(live, T(130));
+assert.equal(d.foulsNow, 1); assert.equal(d.foulsAdvNow, 2); assert.equal(d.cards.length, 2);
+assert.equal(d.byId.a7.lastStint, 100); assert.equal(d.byId.a7.stintRest, 30);
+assert.ok(d.rows.some(r => r.result === 'vermelho adversário 14'));
+live = L.undoFoul(live, 'adv'); assert.equal(L.derive(live, T(130)).foulsAdvNow, 1);
+live = L.undoCard(live); assert.equal(L.derive(live, T(130)).cards.length, 1);
+live = L.push(live, {type: 'break'}, T(1200));
+const sh = buildEpoca({jogos: [{id: 'j', data: '2026-10-18', adversario: 'X', convocados: ats.map(a => a.id), aovivo: live}], atletas: ats});
+const st = sh['Estatísticas por jogador'], H = st[0], b = st.find(r => r[0] == '4');
+assert.equal(b[H.indexOf('Amarelos')], 1); assert.equal(b[H.indexOf('Faltas cometidas MO')], 1);
+assert.equal(sh['Totais por jogo'][1][10], 1);   // faltas do adversário
+console.log('faltas adversário e cartões ok');

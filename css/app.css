@@ -203,12 +203,6 @@ td.pos{color:var(--ok);font-weight:600} td.neg{color:var(--crit);font-weight:600
 .modal{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:16px}
 .modal .box{background:var(--surface);border-radius:12px;padding:16px;display:grid;gap:8px;width:min(100%,380px);max-height:90vh;overflow:auto}
 .modal .box button{min-height:44px;justify-content:flex-start}
-@media (min-width:900px) and (orientation:landscape){
-  .live{grid-template-columns:minmax(320px,1fr) 2fr;align-items:start}
-  .live > .sitbar,.live > details,.live > .row{grid-column:1/-1}
-  .live > .clocks,.live > .ctl,.live > .scoreline,.live > .hint{grid-column:1}
-  .live > .squad{grid-column:2;grid-row:2/span 4}
-}
 body.live-on nav.tabs{display:none}
 body.live-on .app{padding-bottom:0}
 @media (min-width:900px){
@@ -261,3 +255,57 @@ nav.tabs a[aria-current="page"]{color:var(--accent)}
   nav.tabs{border-top:0;border-right:3px solid var(--accent);align-self:stretch;align-content:start;min-height:calc(100vh - 64px);top:64px}
   nav.tabs a[aria-current="page"]{background:var(--accent-soft)}
 }
+
+/* ---------- Ao vivo (v22): grelha fixa de jogadores + coluna de comando ---------- */
+.sitbar .sp{flex:1 0 8px}
+.board{display:grid;gap:12px;grid-template-columns:1fr;align-items:start}
+.grade{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.lado{display:grid;gap:8px;grid-row:1}
+.pc{display:grid;grid-template-columns:none;grid-template-areas:none;grid-template-rows:auto 1fr auto;gap:2px;min-height:96px;padding:8px 10px;border:2px solid var(--line);border-radius:12px;background:var(--surface);text-align:left;align-items:stretch;justify-content:stretch}
+.pc .h,.pc .no,.pc .nm,.pc .tm,.pc .ft,.pc .tot{grid-area:auto}
+.pc .h{display:flex;align-items:baseline;gap:6px;min-width:0}
+.pc .no{font:800 24px/1 var(--display);color:var(--muted)}
+.pc .nm{font:700 16px/1.15 var(--body);white-space:normal;overflow:visible;overflow-wrap:anywhere}
+.pc .cart{margin-left:auto;font-size:13px}
+.pc .tm{font:700 30px/1 var(--mono);font-variant-numeric:tabular-nums;color:var(--muted);align-self:center}
+.pc .ft{display:flex;justify-content:space-between;gap:6px;font-size:12px;color:var(--muted)}
+.pc.on{border:2px solid var(--accent);border-left-width:2px;background:var(--accent-soft)}
+.pc.on .no{color:var(--accent-text)} .pc.on .tm{color:var(--ok)}
+.pc.on.amb .tm{color:var(--warn)} .pc.on.red .tm{color:var(--crit)}
+.pc.pronto .tm{color:var(--ink)} .pc.pronto [data-ok]{color:var(--ok);font-weight:600}
+.pc.sel{outline:4px solid var(--ink);outline-offset:-2px}
+.relogio{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px;display:grid;gap:2px}
+.relogio .lbl{font:600 12px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.relogio b{font:700 clamp(44px,12vw,72px)/1 var(--mono);font-variant-numeric:tabular-nums}
+.relogio b.held{color:var(--warn)} .relogio b.over{color:var(--crit)}
+.relogio .sub{display:flex;justify-content:space-between;font-size:14px;color:var(--muted)}
+.bola{display:grid;place-items:center;text-align:center;min-height:96px;border-radius:14px;border:0;font:800 24px/1.1 var(--body);color:#fff;gap:4px}
+.bola small{font:500 13px/1.2 var(--body);opacity:.9}
+.bola.jogo{background:#1E6B3A} .bola.parada{background:#B3261E} .bola.pausa{background:#7A5B00} .bola.inicio{background:var(--accent);color:#111}
+.lado .dois{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.lado .b{display:grid;place-items:center;text-align:center;min-height:58px;font-weight:700;font-size:16px;gap:2px;padding:4px}
+.lado .b small{font-weight:500;font-size:12px;color:var(--muted)}
+.lado .b.warn{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
+.lado .b.fim{min-height:46px;color:var(--muted);font-weight:600}
+.lado .sc{display:grid;place-items:center;text-align:center;min-height:88px;border-radius:12px;padding:6px;gap:0}
+.lado .sc .who{font-weight:700;font-size:13px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lado .sc b{font:800 40px/1 var(--display)} .lado .sc small{font-size:11px;color:var(--muted)}
+.lado .sc.nos{background:var(--accent-soft);border:2px solid var(--accent)} .lado .sc.nos b{color:var(--accent-text)}
+.lado .sc.adv{background:var(--sunken);border:2px solid var(--muted)}
+.modal .fadv{display:grid;justify-content:center;text-align:center;gap:2px;min-height:56px;margin-top:4px;border:2px dashed var(--muted)}
+.modal .fadv small{font-size:12px;color:var(--muted)}
+.modal .dois{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.modal .cartao{min-height:72px;font-size:18px;font-weight:700;justify-content:center}
+.modal .cartao.am{background:#FDF3D0;color:#5A4300;border-color:#E9C44A} .modal .cartao.vm{background:#FBE1E1;color:#8B1E1E;border-color:#E07A7A}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.numpad output{grid-column:1/-1;text-align:center;font:700 36px/1.2 var(--mono);padding:4px;border:1px solid var(--line);border-radius:8px}
+.modal .numpad button{min-height:56px;font-size:22px;justify-content:center}
+@media (min-width:600px){ .grade{grid-template-columns:repeat(3,1fr)} }
+@media (min-width:900px){
+  .board{grid-template-columns:1fr minmax(280px,320px)}
+  .lado{grid-column:2;grid-row:1;position:sticky;top:70px}
+  .grade{grid-column:1;grid-row:1;grid-template-columns:repeat(4,1fr);gap:10px}
+  .pc{min-height:128px;padding:10px 12px}
+  .pc .no{font-size:30px} .pc .nm{font-size:18px} .pc .tm{font-size:44px} .pc .ft{font-size:13px}
+}
+@media (min-width:1300px){ .grade{grid-template-columns:repeat(5,1fr)} }

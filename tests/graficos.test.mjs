@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import * as L from '../js/live/engine.js';
+import {dadosGraficos, svgRemates, svgFaltas, htmlQuartetos, htmlMinutos} from '../js/graficos.js';
+const pl = ['1 A', '4 B', '7 C', '8 D', '9 E', '10 F'].map(s => { const [n, nome] = s.split(' '); return {id: 'a' + n, num: n, nome}; });
+let live = L.newLive({plantel: pl});
+const T = s => 1e6 + s * 1000;
+live = L.push(live, {type: 'kickoff'}, T(0));
+live = L.push(live, {type: 'shot', team: 'nos'}, T(60)); live = L.push(live, {type: 'goal', team: 'nos'}, T(200));
+live = L.push(live, {type: 'shot', team: 'adv'}, T(400));
+live = L.push(live, {type: 'sub', off: 'a9', on: 'a10'}, T(600));
+live = L.push(live, {type: 'shot', team: 'adv'}, T(700)); live = L.push(live, {type: 'foul', team: 'adv'}, T(710)); live = L.push(live, {type: 'foul', team: 'nos'}, T(720));
+live = L.push(live, {type: 'break'}, T(1200));
+const G = dadosGraficos(live, T(1300), 'parte');
+assert.deepEqual(G.blocos.map(b => [b.nos, b.adv, b.gNos]), [[2, 0, 1], [0, 1, 0], [0, 1, 0], [0, 0, 0]]);
+assert.equal(G.quartetos.length, 2);
+const q1 = G.quartetos.find(q => q.nomes.includes('E')), q2 = G.quartetos.find(q => q.nomes.includes('F'));
+assert.deepEqual([q1.seg, q1.rf, q1.rs, q1.gm], [600, 2, 1, 1]); assert.deepEqual([q2.rf, q2.rs], [0, 1]);
+assert.deepEqual([G.faltas[0].nos.length, G.faltas[0].adv.length], [1, 1]);
+assert.equal(G.minutos[0].seg, 1200);   // GR jogou tudo
+assert.match(svgRemates(G), /<svg/); assert.match(svgFaltas(G.faltas[0], 380), /livre de 10 m/); assert.match(htmlQuartetos(G), /gq-r/); assert.match(htmlMinutos(G), /gm-r/);
+console.log('gráficos ok');

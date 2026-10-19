@@ -9,6 +9,7 @@ const ROUTES = {
   campo: () => import('./views/campo.js'),
   jogo: () => import('./views/jogo.js'),
   aovivo: () => import('./views/aovivo.js'),
+  intervalo: () => import('./views/intervalo.js'),
   plantel: () => import('./views/plantel.js'),
   atleta: () => import('./views/atleta.js'),
   caderno: () => import('./views/caderno.js'),
@@ -16,7 +17,7 @@ const ROUTES = {
   mais: () => import('./views/mais.js'),
 };
 const TABS = [['hoje', 'Hoje'], ['epoca', 'Época'], ['plantel', 'Plantel'], ['caderno', 'Caderno'], ['mais', 'Mais']];
-const TAB_OF = {treino: 'epoca', jogo: 'epoca', aovivo: 'epoca', campo: 'epoca', atleta: 'plantel', exercicio: 'caderno'};
+const TAB_OF = {treino: 'epoca', jogo: 'epoca', aovivo: 'epoca', intervalo: 'epoca', campo: 'epoca', atleta: 'plantel', exercicio: 'caderno'};
 
 document.querySelector('nav.tabs').innerHTML = TABS.map(([k, l]) => `<a href="#/${k}" data-tab="${k}">${ICONS[k]}<span>${l}</span></a>`).join('');
 
@@ -95,9 +96,9 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   let had = !!navigator.serviceWorker.controller, pend = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!had) { had = true; return; }
-    if (location.hash.startsWith('#/aovivo')) pend = true; else location.reload();
+    if (/^#\/(aovivo|intervalo)/.test(location.hash)) pend = true; else location.reload();
   });
-  addEventListener('hashchange', () => { if (pend && !location.hash.startsWith('#/aovivo')) location.reload(); });
+  addEventListener('hashchange', () => { if (pend && !/^#\/(aovivo|intervalo)/.test(location.hash)) location.reload(); });
 }
 try { navigator.storage?.persist?.(); } catch (e) {}
 

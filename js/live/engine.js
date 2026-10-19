@@ -53,7 +53,7 @@ export function derive(live, now = null) {
     paused: false, stopped: false,
     run: 0, eff: 0,                    // segundos na parte atual
     court: {...(live.court0 || {})},
-    score: {nos: 0, adv: 0}, shots: {nos: 0, adv: 0}, fouls: [], foulsPer: {}, foulsAdv: [], foulsAdvPer: {}, cards: [],
+    score: {nos: 0, adv: 0}, shots: {nos: 0, adv: 0}, fouls: [], foulsPer: {}, foulsAdv: [], foulsAdvPer: {}, cards: [], shotList: [],
     states: {num: null, sis: null},
     snapshot: null,                    // lugares antes do 1.º preset (para o Repor)
     rows: [], segments: [], goals: [],
@@ -150,12 +150,14 @@ export function derive(live, now = null) {
       case 'goal': {
         const nos = e.team === 'nos';
         st.score[nos ? 'nos' : 'adv']++; st.shots[nos ? 'nos' : 'adv']++;
+        if (st.phase === 'live') st.shotList.push({id: e.id, team: e.team, per: st.per, eff: st.eff, golo: true});
         row(nos ? 'golo marcado' : 'golo sofrido', e.by || null, e.ast || null, true, e);
         st.goals.push({id: e.id, team: e.team, per: st.per, run: st.run, eff: st.eff, on: SLOTS.map(s => st.court[s] ?? null), by: e.by || null, ast: e.ast || null});
         break;
       }
       case 'shot':
         st.shots[e.team === 'nos' ? 'nos' : 'adv']++;
+        if (st.phase === 'live') st.shotList.push({id: e.id, team: e.team === 'nos' ? 'nos' : 'adv', per: st.per, eff: st.eff, golo: false});
         if (e.team === 'nos') row('remate feito', e.by || null, null, true, e);
         break;
       case 'foul': {         // falta nossa: quem fez e zona (MD/MO do nosso ponto de vista); do adversário só conta

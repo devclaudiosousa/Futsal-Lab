@@ -77,6 +77,7 @@ export async function render(main, [id], ctx) {
             <button class="b" data-act="undo">↶ Desfazer<small>troca ou situação</small></button>
             ${running && !d.paused ? '<button class="b" data-act="pause">Desconto<small>de tempo</small></button>' : '<span></span>'}
           </div>
+          ${d.per >= 0 ? `<a class="btn g-btn" href="#/intervalo/${j.id}">📊 Gráficos<small>remates, quartetos, faltas, minutos</small></a>` : ''}
           ${running ? '<button class="b fim" data-fim>Fim da parte<small>manter premido</small></button>' : ''}
         </div>
       </div>
@@ -167,7 +168,7 @@ export async function render(main, [id], ctx) {
     const cb = main.querySelector('[data-card]');
     if (cb) press(cb, () => askCard(), () => { if (d.cards.length && confirm('Anular o último cartão?')) set(L.undoCard(live)); });
     const fim = main.querySelector('[data-fim]');
-    if (fim) press(fim, () => toast('Mantém premido para terminar a parte'), () => add({type: 'break'}));
+    if (fim) press(fim, () => toast('Mantém premido para terminar a parte'), async () => { await add({type: 'break'}); ctx.go('#/intervalo/' + j.id); });
     main.querySelectorAll('[data-sit]').forEach(b => press(b, () => runSit(b.dataset.sit), () => openPreset(b.dataset.sit, d)));
     main.querySelector('#tabDet').ontoggle = e => { showTab = e.target.open; };
     main.querySelector('#regDet').ontoggle = e => { showReg = e.target.open; };

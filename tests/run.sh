@@ -8,3 +8,4 @@ node tests/tempos.test.mjs
 node tests/xlsx.test.mjs
 node tests/livro.test.mjs
 node tests/faltas-cartoes.test.mjs
+node tests/graficos.test.mjs
